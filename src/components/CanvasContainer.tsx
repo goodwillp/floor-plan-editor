@@ -1,0 +1,297 @@
+import { useEffect, useRef, useState, useCallback } from 'react'
+import * as PIXI from 'pixi.js'
+import { cn } from '@/lib/utils'
+import type { Point } from '@/lib/types'
+import { useViewport } from '@/hooks/useViewport'
+import type { ViewportConfig } from '@/lib/ViewportService'
+
+export interface CanvasViewportAPI {
+  zoomIn: (centerX?: number, centerY?: number) => void
+  zoomOut: (centerX?: number, centerY?: number) => void
+  zoomTo: (zoom: number, centerX?: number, centerY?: number, animate?: boolean) => void
+  resetZoom: () => void
+  resetViewport: () => void
+  fitToContent: (bounds: { minX: number; maxX: number; minY: number; maxY: number }, padding?: number) => void
+  screenToWorld: (screenX: number, screenY: number) => { x: number; y: number }
+  worldToScreen: (worldX: number, worldY: number) => { x: number; y: number }
+}
+
+interface CanvasContainerProps {
+  className?: string
+  viewportConfig?: Partial<ViewportConfig>
+  onMouseMove?: (coordinates: { x: number; y: number }) => void
+  onCanvasClick?: (point: Point) => void
+  onCanvasDoubleClick?: (point: Point) => void
+  onCanvasRightClick?: (point: Point) => void
+  onCanvasReady?: (layers: CanvasLayers, app: PIXI.Application, viewportAPI: CanvasViewportAPI) => void
+  onViewportChange?: (viewport: { zoom: number; panX: number; panY: number }) => void
+}
+
+export interface CanvasLayers {
+  background: PIXI.Container
+  reference: PIXI.Container
+  grid: PIXI.Container
+  wall: PIXI.Container
+  selection: PIXI.Container
+  ui: PIXI.Container
+}
+
+export function CanvasContainer({ 
+  className, 
+  viewportConfig,
+  onMouseMove, 
+  onCanvasClick,
+  onCanvasDoubleClick,
+  onCanvasRightClick,
+  onCanvasReady,
+  onViewportChange
+}: CanvasContainerProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const appRef = useRef<PIXI.Application | null>(null)
+  const layersRef = useRef<CanvasLayers | null>(null)
+  const [isInitialized, setIsInitialized] = useState(false)
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 })
+
+  // Initialize viewport management
+  const viewport = useViewport({
+    pixiApp: appRef.current,
+    config: viewportConfig,
+    canvasSize
+  })
+
+  // Initialize PixiJS application
+  const initializePixi = useCallback(async () => {
+    if (!containerRef.current || appRef.current) return
+
+    try {
+      // Create PixiJS application with proper configuration
+      const app = new PIXI.Application()
+      
+      await app.init({
+        width: containerRef.current.clientWidth,
+        height: containerRef.current.clientHeight,
+        backgroundColor: 0xffffff,
+        antialias: true,
+        resolution: window.devicePixelRatio || 1,
+        autoDensity: true,
+        powerPreference: 'high-performance'
+      })
+
+      // Store app reference
+      appRef.current = app
+      
+      // Update canvas size state
+      if (containerRef.current) {
+        setCanvasSize({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight
+        })
+      }
+
+      // Create layered rendering system
+      const layers: CanvasLayers = {
+        background: new PIXI.Container(),
+        reference: new PIXI.Container(),
+        grid: new PIXI.Container(),
+        wall: new PIXI.Container(),
+        selection: new PIXI.Container(),
+        ui: new PIXI.Container()
+      }
+
+      // Set layer z-indices and add to stage
+      layers.background.zIndex = 0
+      layers.reference.zIndex = 10
+      layers.grid.zIndex = 20
+      layers.wall.zIndex = 30
+      layers.selection.zIndex = 50
+      layers.ui.zIndex = 60
+
+      // Add layers to stage in order
+      app.stage.addChild(layers.background)
+      app.stage.addChild(layers.reference)
+      app.stage.addChild(layers.grid)
+      app.stage.addChild(layers.wall)
+      app.stage.addChild(layers.selection)
+      app.stage.addChild(layers.ui)
+
+      // Enable sorting by z-index
+      app.stage.sortableChildren = true
+
+      // Store layers reference
+      layersRef.current = layers
+
+      // Add canvas to DOM
+      if (containerRef.current) {
+        containerRef.current.appendChild(app.canvas)
+      }
+
+      // Set up basic canvas event handling
+      setupEventHandlers(app)
+
+      setIsInitialized(true)
+      
+      // Create viewport API
+      const viewportAPI: CanvasViewportAPI = {
+        zoomIn: viewport.zoomIn,
+        zoomOut: viewport.zoomOut,
+        zoomTo: viewport.zoomTo,
+        resetZoom: viewport.resetZoom,
+        resetViewport: viewport.resetViewport,
+        fitToContent: viewport.fitToContent,
+        screenToWorld: viewport.screenToWorld,
+        worldToScreen: viewport.worldToScreen
+      }
+      
+      // Notify parent component that canvas is ready
+      onCanvasReady?.(layers, app, viewportAPI)
+    } catch (error) {
+      console.error('Failed to initialize PixiJS:', error)
+    }
+  }, [])
+
+  // Set up canvas event handling
+  const setupEventHandlers = useCallback((app: PIXI.Application) => {
+    // Enable interaction
+    app.stage.eventMode = 'static'
+    app.stage.hitArea = app.screen
+    
+    // Mouse move event
+    app.stage.on('pointermove', (event: PIXI.FederatedPointerEvent) => {
+      const position = {
+        x: Math.round(event.global.x),
+        y: Math.round(event.global.y)
+      }
+      setMousePosition(position)
+      onMouseMove?.(position)
+    })
+
+    // Click events for drawing
+    app.stage.on('pointerdown', (event: PIXI.FederatedPointerEvent) => {
+      const point: Point = {
+        x: Math.round(event.global.x),
+        y: Math.round(event.global.y)
+      }
+      
+      if (event.detail === 2) {
+        // Double click
+        onCanvasDoubleClick?.(point)
+      } else if (event.button === 2) {
+        // Right click
+        onCanvasRightClick?.(point)
+      } else {
+        // Left click
+        onCanvasClick?.(point)
+      }
+    })
+
+    // Prevent context menu on right click
+    app.canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault()
+    })
+    
+    // Add viewport event handlers
+    app.canvas.addEventListener('wheel', viewport.handleWheel, { passive: false })
+    app.canvas.addEventListener('mousedown', viewport.handleMouseDown)
+    app.canvas.addEventListener('mousemove', viewport.handleMouseMove)
+    app.canvas.addEventListener('mouseup', viewport.handleMouseUp)
+    
+    // Cleanup viewport event handlers
+    return () => {
+      app.canvas.removeEventListener('wheel', viewport.handleWheel)
+      app.canvas.removeEventListener('mousedown', viewport.handleMouseDown)
+      app.canvas.removeEventListener('mousemove', viewport.handleMouseMove)
+      app.canvas.removeEventListener('mouseup', viewport.handleMouseUp)
+    }
+  }, [onMouseMove, onCanvasClick, onCanvasDoubleClick, onCanvasRightClick, viewport.handleWheel, viewport.handleMouseDown, viewport.handleMouseMove, viewport.handleMouseUp])
+
+  // Notify parent of viewport changes
+  useEffect(() => {
+    if (onViewportChange) {
+      onViewportChange({
+        zoom: viewport.zoom,
+        panX: viewport.panX,
+        panY: viewport.panY
+      })
+    }
+  }, [viewport.zoom, viewport.panX, viewport.panY, onViewportChange])
+
+  // Handle canvas resizing
+  const handleResize = useCallback(() => {
+    if (!appRef.current || !containerRef.current) return
+
+    const { clientWidth, clientHeight } = containerRef.current
+    appRef.current.renderer.resize(clientWidth, clientHeight)
+    
+    // Update canvas size state for viewport
+    setCanvasSize({ width: clientWidth, height: clientHeight })
+  }, [])
+
+  // Set up resize observer for viewport management
+  useEffect(() => {
+    if (!containerRef.current) return
+
+    const resizeObserver = new ResizeObserver(handleResize)
+    resizeObserver.observe(containerRef.current)
+
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, [handleResize])
+
+  // Initialize PixiJS when component mounts
+  useEffect(() => {
+    initializePixi()
+
+    // Cleanup function
+    return () => {
+      if (appRef.current) {
+        appRef.current.destroy(true, { children: true, texture: true })
+        appRef.current = null
+        layersRef.current = null
+        setIsInitialized(false)
+      }
+    }
+  }, [initializePixi])
+
+  // These functions are available for future use
+  // const getLayers = useCallback((): CanvasLayers | null => {
+  //   return layersRef.current
+  // }, [])
+
+  // const getApp = useCallback((): PIXI.Application | null => {
+  //   return appRef.current
+  // }, [])
+
+  return (
+    <div 
+      ref={containerRef}
+      data-testid="canvas-container"
+      className={cn(
+        'flex-1 bg-white border border-border relative overflow-hidden',
+        'cursor-crosshair',
+        className
+      )}
+    >
+      {/* Loading indicator while PixiJS initializes */}
+      {!isInitialized && (
+        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+          <div className="text-center">
+            <div className="text-lg font-medium mb-2">Initializing Canvas...</div>
+            <div className="text-sm opacity-60">Setting up PixiJS renderer</div>
+          </div>
+        </div>
+      )}
+      
+      {/* Debug info overlay (can be removed in production) */}
+      {isInitialized && (
+        <div className="absolute top-2 left-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
+          Mouse: {mousePosition.x}, {mousePosition.y} | PixiJS Ready
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Export types and utilities for use by other components
+export type { CanvasContainerProps }
