@@ -57,6 +57,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   const viewportAPIRef = useRef<CanvasViewportAPI | null>(null)
   const [layers, setLayers] = useState<CanvasLayers | null>(null)
   const [, setApp] = useState<PIXI.Application | null>(null)
+  const [canvasSize, setCanvasSize] = useState<{ width: number; height: number } | undefined>(undefined)
 
   // Drawing hook
   const {
@@ -132,12 +133,24 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   const {
     isVisible: gridIsVisible,
     toggleGrid,
+    setGridVisible,
     snapPoint
   } = useGrid({
     layers,
-    canvasSize: layers ? { width: 800, height: 600 } : undefined, // TODO: Get actual canvas size
+    canvasSize: canvasSize,
     initialVisible: gridVisible
   })
+
+  // Sync grid visibility when prop changes
+  useEffect(() => {
+    console.log('🔍 Grid visibility prop changed:', { gridVisible, gridIsVisible })
+    
+    // Only update if there's a mismatch
+    if (gridVisible !== gridIsVisible && setGridVisible) {
+      console.log('🔍 Setting grid visibility to:', gridVisible)
+      setGridVisible(gridVisible)
+    }
+  }, [gridVisible, gridIsVisible, setGridVisible])
 
   // Reference image hook
   const referenceImage = useReferenceImage({
@@ -198,6 +211,12 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       
       // Store viewport API reference
       viewportAPIRef.current = viewportAPI
+      
+      // Set actual canvas size
+      setCanvasSize({
+        width: pixiApp.screen.width,
+        height: pixiApp.screen.height
+      })
       
       // Initialize wall renderer
       wallRendererRef.current = new WallRenderer()
@@ -345,13 +364,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     }
   }, [activeMerges, onProximityMergingUpdate]) // Removed mergeStats to prevent infinite loop
 
-  // Handle grid visibility changes from parent
-  useEffect(() => {
-    if (gridVisible !== gridIsVisible) {
-      toggleGrid()
-      onGridToggle?.()
-    }
-  }, [gridVisible, gridIsVisible, toggleGrid, onGridToggle])
+  // Removed the problematic useEffect that was causing infinite loop
+  // Grid visibility should be managed by the parent component only
 
   // Notify parent of reference image updates
   useEffect(() => {
