@@ -36,15 +36,15 @@ export interface GridConfig {
 export const DEFAULT_GRID_CONFIG: GridConfig = {
   cellSize: 20,           // 20px grid cells
   majorInterval: 5,       // Major lines every 5 cells (100px)
-  minorColor: 0x888888,   // Light gray
-  majorColor: 0x666666,   // Darker gray
-  minorAlpha: 0.3,        // Subtle minor lines
-  majorAlpha: 0.5,        // More prominent major lines
+  minorColor: 0xcccccc,   // Medium gray (more visible)
+  majorColor: 0x999999,   // Dark gray (more visible)
+  minorAlpha: 0.6,        // More visible minor lines
+  majorAlpha: 0.8,        // More visible major lines
   minorWidth: 1,          // Thin minor lines
   majorWidth: 1.5,        // Slightly thicker major lines
   showOrigin: true,       // Show origin axes
   originColor: 0x4444ff,  // Blue origin
-  originAlpha: 0.7,       // Semi-transparent
+  originAlpha: 0.9,       // More visible origin
   originWidth: 2          // Thick origin lines
 }
 
@@ -94,6 +94,12 @@ export class GridRenderer {
    * @param height Canvas height in pixels
    */
   setCanvasSize(width: number, height: number): void {
+    console.log('🔍 GridRenderer.setCanvasSize() called', {
+      width,
+      height,
+      timestamp: Date.now()
+    })
+    
     this.canvasWidth = width
     this.canvasHeight = height
     if (this.isVisible) {
@@ -106,8 +112,16 @@ export class GridRenderer {
    * Requirements: 10.1, 10.5
    */
   show(): void {
+    console.log('🔍 GridRenderer.show() called')
     this.isVisible = true
     this.gridGraphics.visible = true
+    
+    // Debug: Check if graphics are in container
+    console.log('🔍 Grid graphics in container:', this.container.children.includes(this.gridGraphics))
+    console.log('🔍 Grid graphics visible:', this.gridGraphics.visible)
+    console.log('🔍 Grid graphics alpha:', this.gridGraphics.alpha)
+    console.log('🔍 Grid graphics zIndex:', this.gridGraphics.zIndex)
+    
     this.render()
   }
 
@@ -148,20 +162,47 @@ export class GridRenderer {
    * Requirements: 10.2
    */
   private render(): void {
+    console.log('🎨 GridRenderer.render() called', {
+      isVisible: this.isVisible,
+      canvasWidth: this.canvasWidth,
+      canvasHeight: this.canvasHeight,
+      timestamp: Date.now()
+    })
+    
     this.gridGraphics.clear()
 
     if (!this.isVisible || this.canvasWidth <= 0 || this.canvasHeight <= 0) {
+      console.log('🎨 GridRenderer.render() - skipping render', {
+        isVisible: this.isVisible,
+        canvasWidth: this.canvasWidth,
+        canvasHeight: this.canvasHeight
+      })
       return
     }
 
-    // Calculate grid bounds with some padding
+    // TEST: Add a simple red rectangle to verify rendering is working
+    // Use new PixiJS v8 API - render in screen coordinates
+    this.gridGraphics.fill({ color: 0xff0000, alpha: 0.8 })
+    this.gridGraphics.rect(0, 0, 100, 100)
+    console.log('🎨 Added test red rectangle at (0,0) 100x100')
+
+    // Render grid in screen coordinates (not world coordinates)
+    // This ensures the grid is always visible regardless of viewport transformation
+    this.renderGridInScreenCoordinates()
+  }
+
+  /**
+   * Render grid in screen coordinates
+   */
+  private renderGridInScreenCoordinates(): void {
+    // Calculate grid bounds in screen coordinates
     const padding = this.config.cellSize * 2
     const startX = -padding
     const endX = this.canvasWidth + padding
     const startY = -padding
     const endY = this.canvasHeight + padding
 
-    // Calculate grid line positions
+    // Calculate grid line positions in screen coordinates
     const minorLinesX = this.calculateGridLines(startX, endX, this.config.cellSize)
     const minorLinesY = this.calculateGridLines(startY, endY, this.config.cellSize)
     
@@ -248,7 +289,21 @@ export class GridRenderer {
     alpha: number,
     width: number
   ): void {
-    this.gridGraphics.lineStyle(width, color, alpha)
+    console.log('🎨 Rendering grid lines:', {
+      color: `0x${color.toString(16)}`,
+      alpha,
+      width,
+      xLinesCount: xLines.length,
+      yLinesCount: yLines.length,
+      bounds: { minX, maxX, minY, maxY }
+    })
+    
+    // Use the new PixiJS v8 stroke method
+    this.gridGraphics.stroke({
+      width,
+      color,
+      alpha
+    })
 
     // Draw vertical lines
     for (const x of xLines) {
@@ -272,7 +327,12 @@ export class GridRenderer {
    * @param maxY Maximum Y coordinate
    */
   private renderOriginAxes(minX: number, maxX: number, minY: number, maxY: number): void {
-    this.gridGraphics.lineStyle(this.config.originWidth, this.config.originColor, this.config.originAlpha)
+    // Use the new PixiJS v8 stroke method
+    this.gridGraphics.stroke({
+      width: this.config.originWidth,
+      color: this.config.originColor,
+      alpha: this.config.originAlpha
+    })
 
     // X-axis (horizontal line at Y=0)
     if (minY <= 0 && maxY >= 0) {

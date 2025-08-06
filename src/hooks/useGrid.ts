@@ -103,10 +103,19 @@ export function useGrid({
 
   // Initialize renderer when layers are available
   useEffect(() => {
+    console.log('🔍 Grid renderer initialization check:', {
+      hasLayers: !!layers,
+      hasGridLayer: !!layers?.grid,
+      hasRenderer: !!rendererRef.current,
+      timestamp: Date.now()
+    })
+    
     if (layers?.grid && !rendererRef.current) {
+      console.log('🔍 Creating new GridRenderer')
       rendererRef.current = new GridRenderer(layers.grid, config)
       
       if (gridServiceRef.current) {
+        console.log('🔍 Setting renderer in grid service')
         gridServiceRef.current.setRenderer(rendererRef.current)
       }
 
@@ -115,6 +124,7 @@ export function useGrid({
 
     return () => {
       if (rendererRef.current) {
+        console.log('🔍 Destroying grid renderer')
         rendererRef.current.destroy()
         rendererRef.current = null
       }
@@ -173,8 +183,16 @@ export function useGrid({
 
   // Set grid visibility
   const setGridVisible = useCallback((visible: boolean) => {
+    console.log('🔍 setGridVisible called:', {
+      visible,
+      hasGridService: !!gridServiceRef.current,
+      timestamp: Date.now()
+    })
+    
     if (gridServiceRef.current) {
       gridServiceRef.current.setVisibility(visible)
+    } else {
+      console.warn('🔍 Grid service not available for setGridVisible')
     }
   }, [])
 
@@ -257,8 +275,6 @@ export function useGrid({
     snapPoint,
     isNearGridIntersection,
     exportSettings,
-    importSettings,
-    // Internal method for canvas integration
-    updateViewport: updateViewport as any
+    importSettings
   }
 }

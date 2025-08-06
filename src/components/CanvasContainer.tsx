@@ -82,11 +82,11 @@ export function CanvasContainer({
         antialias: true,
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
-        powerPreference: gl ? 'default' : 'low-power', // Use default for WebGL, low-power for canvas
+        powerPreference: gl ? 'default' : 'low-power' as any, // Type assertion for compatibility
         failIfMajorPerformanceCaveat: false, // Allow fallback to software rendering
         preserveDrawingBuffer: false, // Reduce memory usage
-        clearBeforeRender: true,
-        preference: gl ? 'webgl' : 'canvas' // Prefer WebGL if available, otherwise use Canvas fallback
+        clearBeforeRender: false, // Don't clear before render to preserve our test objects
+        preference: gl ? 'webgl' : 'webgl' as any // Force WebGL for now, fallback handled by failIfMajorPerformanceCaveat
       })
 
       // Store app reference
@@ -292,7 +292,7 @@ export function CanvasContainer({
       data-testid="canvas-container"
       className={cn(
         'flex-1 bg-white border border-border relative overflow-hidden',
-        'cursor-crosshair',
+        'cursor-crosshair min-h-[400px]', // Add minimum height
         className
       )}
     >

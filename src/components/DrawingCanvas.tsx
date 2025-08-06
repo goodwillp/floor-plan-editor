@@ -212,10 +212,142 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       // Store viewport API reference
       viewportAPIRef.current = viewportAPI
       
-      // Set actual canvas size
+      // Set actual canvas size from the canvas element
+      const canvas = pixiApp.canvas as HTMLCanvasElement
+      const actualWidth = canvas.clientWidth || canvas.width || 800
+      const actualHeight = canvas.clientHeight || canvas.height || 600
+      
+      console.log('🔍 Canvas ready - setting canvas size:', {
+        actualWidth,
+        actualHeight,
+        pixiAppScreen: { width: pixiApp.screen.width, height: pixiApp.screen.height },
+        canvasElement: { width: canvas.width, height: canvas.height },
+        canvasClient: { width: canvas.clientWidth, height: canvas.clientHeight }
+      })
+      
+      // Debug: Check if PixiJS app is running
+      console.log('🔍 PixiJS App Status:', {
+        stage: !!pixiApp.stage,
+        stageChildren: pixiApp.stage?.children?.length || 0,
+        renderer: !!pixiApp.renderer,
+        canvas: !!pixiApp.canvas
+      })
+      
+      // Debug: Check stage hierarchy
+      if (pixiApp.stage) {
+        console.log('🔍 Stage Hierarchy:', {
+          stageChildren: pixiApp.stage.children.length,
+          stageVisible: pixiApp.stage.visible,
+          stageAlpha: pixiApp.stage.alpha,
+          stageScale: { x: pixiApp.stage.scale.x, y: pixiApp.stage.scale.y },
+          stagePosition: { x: pixiApp.stage.position.x, y: pixiApp.stage.position.y }
+        })
+        
+        // Log each child
+        pixiApp.stage.children.forEach((child, index) => {
+          console.log(`🔍 Stage Child ${index}:`, {
+            type: child.constructor.name,
+            visible: child.visible,
+            alpha: child.alpha,
+            zIndex: child.zIndex,
+            children: child.children?.length || 0
+          })
+        })
+        
+        // TEST: Add a simple visible test object to verify rendering is working
+        const testGraphics = new PIXI.Graphics()
+        testGraphics.fill({ color: 0x00ff00, alpha: 1 })
+        testGraphics.rect(50, 50, 50, 50)
+        testGraphics.zIndex = 100 // High z-index to be on top
+        pixiApp.stage.addChild(testGraphics)
+        console.log('🔍 Added test green square at (50,50) 50x50 to stage')
+        
+        // TEST 2: Add a test object that bypasses viewport transformation
+        // Create a container that's not affected by stage transformation
+        const screenTestContainer = new PIXI.Container()
+        screenTestContainer.zIndex = 200 // Even higher z-index
+        
+        // Add this container directly to the renderer's root, not the stage
+        if (pixiApp.renderer) {
+          // Create a test graphics in screen coordinates
+          const screenTestGraphics = new PIXI.Graphics()
+          screenTestGraphics.fill({ color: 0xff0000, alpha: 1 })
+          screenTestGraphics.rect(100, 100, 100, 100)
+          screenTestContainer.addChild(screenTestGraphics)
+          
+          // Add to stage but with a different approach
+          pixiApp.stage.addChild(screenTestContainer)
+          console.log('🔍 Added screen test red square at (100,100) 100x100 to screen container')
+        }
+        
+        // TEST 3: Render directly to HTML5 Canvas to bypass PixiJS entirely
+        try {
+          const canvas = pixiApp.canvas as HTMLCanvasElement
+          console.log('🔍 HTML5 Canvas test - canvas element:', {
+            width: canvas.width,
+            height: canvas.height,
+            clientWidth: canvas.clientWidth,
+            clientHeight: canvas.clientHeight,
+            style: canvas.style.cssText
+          })
+          
+          const ctx = canvas.getContext('2d')
+          if (ctx) {
+            console.log('🔍 HTML5 Canvas test - got 2D context')
+            ctx.fillStyle = '#0000ff' // Blue
+            ctx.fillRect(200, 200, 100, 100)
+            console.log('🔍 Added HTML5 Canvas blue square at (200,200) 100x100')
+            
+            // Test 2: Draw a simple line to verify context is working
+            ctx.strokeStyle = '#ff0000' // Red
+            ctx.lineWidth = 5
+            ctx.beginPath()
+            ctx.moveTo(300, 300)
+            ctx.lineTo(400, 400)
+            ctx.stroke()
+            console.log('🔍 Added HTML5 Canvas red line from (300,300) to (400,400)')
+          } else {
+            console.error('🔍 HTML5 Canvas test failed - could not get 2D context')
+          }
+        } catch (error) {
+          console.error('🔍 HTML5 Canvas test failed:', error)
+        }
+        
+        // DEBUG: Check if viewport is affecting visibility
+        console.log('🔍 Viewport Debug:', {
+          stageScale: { x: pixiApp.stage.scale.x, y: pixiApp.stage.scale.y },
+          stagePosition: { x: pixiApp.stage.position.x, y: pixiApp.stage.position.y },
+          canvasWidth: actualWidth,
+          canvasHeight: actualHeight,
+          // Check if stage is positioned outside visible area
+          stageInView: {
+            scaleVisible: pixiApp.stage.scale.x > 0.01 && pixiApp.stage.scale.y > 0.01,
+            positionInBounds: pixiApp.stage.position.x < actualWidth && pixiApp.stage.position.y < actualHeight
+          }
+        })
+        
+        // DEBUG: Show actual values
+        console.log('🔍 Stage Scale:', pixiApp.stage.scale.x, pixiApp.stage.scale.y)
+        console.log('🔍 Stage Position:', pixiApp.stage.position.x, pixiApp.stage.position.y)
+        console.log('🔍 Canvas Size:', actualWidth, actualHeight)
+        console.log('🔍 Scale Visible:', pixiApp.stage.scale.x > 0.01 && pixiApp.stage.scale.y > 0.01)
+        console.log('🔍 Position In Bounds:', pixiApp.stage.position.x < actualWidth && pixiApp.stage.position.y < actualHeight)
+        
+        // DEBUG: Check PixiJS renderer state
+        console.log('🔍 PixiJS Renderer Debug:', {
+          renderer: !!pixiApp.renderer,
+          rendererType: pixiApp.renderer?.constructor.name,
+          canvas: !!pixiApp.canvas,
+          canvasWidth: pixiApp.canvas?.width,
+          canvasHeight: pixiApp.canvas?.height,
+          screenWidth: pixiApp.screen?.width,
+          screenHeight: pixiApp.screen?.height
+        })
+      }
+      
       setCanvasSize({
-        width: pixiApp.screen.width,
-        height: pixiApp.screen.height
+        width: actualWidth,
+        height: actualHeight
       })
       
       // Initialize wall renderer
