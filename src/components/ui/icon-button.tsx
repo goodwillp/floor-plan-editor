@@ -27,26 +27,21 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     ...props 
   }, ref) => {
     return (
-      <Tooltip delayDuration={tooltipDelay}>
-        <TooltipTrigger asChild>
-          <Button
-            ref={ref}
-            variant={isActive ? 'default' : variant}
-            size={size}
-            className={cn(
-              'aspect-square transition-colors',
-              isActive && 'bg-primary text-primary-foreground hover:bg-primary/90',
-              className
-            )}
-            {...props}
-          >
-            <Icon size={iconSize} />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side={tooltipSide}>
-          <p>{tooltip}</p>
-        </TooltipContent>
-      </Tooltip>
+      <Button
+        ref={ref}
+        variant={isActive ? 'default' : variant}
+        size={size}
+        className={cn(
+          'aspect-square transition-colors',
+          isActive && 'bg-primary text-primary-foreground hover:bg-primary/90',
+          className
+        )}
+        aria-label={tooltip}
+        title={tooltip}
+        {...props}
+      >
+        <Icon size={iconSize} />
+      </Button>
     )
   }
 )

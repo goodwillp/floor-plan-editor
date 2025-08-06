@@ -1,4 +1,5 @@
-import { IconButton } from '@/components/ui/icon-button'
+import * as React from 'react'
+import { SimpleIconButton } from '@/components/ui/simple-icon-button'
 import { ToggleIconButton } from '@/components/ui/toggle-icon-button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { CompactZoomControls } from '@/components/ZoomControls'
@@ -58,49 +59,65 @@ export function ToolPalette({
   onReferenceImageToggleLock,
   onReferenceImageToggleVisibility
 }: ToolPaletteProps) {
+  // Create stable handlers to prevent infinite re-renders
+  const handleLayoutWallClick = React.useCallback(() => onWallTypeChange('layout'), [onWallTypeChange])
+  const handleZoneWallClick = React.useCallback(() => onWallTypeChange('zone'), [onWallTypeChange])
+  const handleAreaWallClick = React.useCallback(() => onWallTypeChange('area'), [onWallTypeChange])
+  
+  const handleSelectToolClick = React.useCallback(() => onToolChange('select'), [onToolChange])
+  const handleDrawToolClick = React.useCallback(() => onToolChange('draw'), [onToolChange])
+  const handleDeleteToolClick = React.useCallback(() => onToolChange('delete'), [onToolChange])
+  
+  // Create stable fallback handlers
+  const handleZoomInClick = React.useCallback(() => onZoomIn?.(), [onZoomIn])
+  const handleZoomOutClick = React.useCallback(() => onZoomOut?.(), [onZoomOut])
+  const handleResetZoomClick = React.useCallback(() => onResetZoom?.(), [onResetZoom])
+  const handleToggleLockClick = React.useCallback(() => onReferenceImageToggleLock?.(), [onReferenceImageToggleLock])
+  const handleToggleVisibilityClick = React.useCallback(() => onReferenceImageToggleVisibility?.(), [onReferenceImageToggleVisibility])
+  const noopHandler = React.useCallback(() => {}, [])
   return (
     <div className="flex items-center p-2 border-b bg-background">
       {/* Wall Types */}
       <ButtonGroup separator>
-        <IconButton
+        <SimpleIconButton
           icon={iconMappings.layoutWall.icon}
-          tooltip={iconMappings.layoutWall.tooltip}
           isActive={activeWallType === 'layout'}
-          onClick={() => onWallTypeChange('layout')}
+          onClick={handleLayoutWallClick}
+          aria-label={iconMappings.layoutWall.tooltip}
         />
-        <IconButton
+        <SimpleIconButton
           icon={iconMappings.zoneWall.icon}
-          tooltip={iconMappings.zoneWall.tooltip}
           isActive={activeWallType === 'zone'}
-          onClick={() => onWallTypeChange('zone')}
+          onClick={handleZoneWallClick}
+          aria-label={iconMappings.zoneWall.tooltip}
         />
-        <IconButton
+        <SimpleIconButton
           icon={iconMappings.areaWall.icon}
-          tooltip={iconMappings.areaWall.tooltip}
           isActive={activeWallType === 'area'}
-          onClick={() => onWallTypeChange('area')}
+          onClick={handleAreaWallClick}
+          aria-label={iconMappings.areaWall.tooltip}
         />
       </ButtonGroup>
 
       {/* Drawing Tools */}
       <ButtonGroup separator>
-        <IconButton
+        <SimpleIconButton
           icon={iconMappings.select.icon}
-          tooltip={iconMappings.select.tooltip}
           isActive={activeTool === 'select'}
-          onClick={() => onToolChange('select')}
+          onClick={handleSelectToolClick}
+          aria-label={iconMappings.select.tooltip}
         />
-        <IconButton
+        <SimpleIconButton
           icon={iconMappings.drawWall.icon}
-          tooltip={iconMappings.drawWall.tooltip}
           isActive={activeTool === 'draw'}
-          onClick={() => onToolChange('draw')}
+          onClick={handleDrawToolClick}
+          aria-label={iconMappings.drawWall.tooltip}
         />
-        <IconButton
+        <SimpleIconButton
           icon={iconMappings.delete.icon}
-          tooltip={iconMappings.delete.tooltip}
           isActive={activeTool === 'delete'}
-          onClick={() => onToolChange('delete')}
+          onClick={handleDeleteToolClick}
+          aria-label={iconMappings.delete.tooltip}
         />
       </ButtonGroup>
 
@@ -124,8 +141,8 @@ export function ToolPalette({
           hasImage={hasReferenceImage}
           isLocked={referenceImageLocked}
           isVisible={referenceImageVisible}
-          onToggleLock={onReferenceImageToggleLock || (() => {})}
-          onToggleVisibility={onReferenceImageToggleVisibility || (() => {})}
+          onToggleLock={handleToggleLockClick}
+          onToggleVisibility={handleToggleVisibilityClick}
         />
       </ButtonGroup>
 
@@ -137,10 +154,10 @@ export function ToolPalette({
             zoomPercentage={zoomPercentage}
             canZoomIn={canZoomIn}
             canZoomOut={canZoomOut}
-            onZoomIn={onZoomIn || (() => {})}
-            onZoomOut={onZoomOut || (() => {})}
-            onResetZoom={onResetZoom || (() => {})}
-            onFitToScreen={() => {}} // Not implemented in this context
+            onZoomIn={handleZoomInClick}
+            onZoomOut={handleZoomOutClick}
+            onResetZoom={handleResetZoomClick}
+            onFitToScreen={noopHandler}
             className="ml-2"
           />
         </ButtonGroup>

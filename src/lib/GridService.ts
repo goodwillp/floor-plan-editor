@@ -15,6 +15,8 @@ export class GridService {
   private snapEnabled: boolean = true
   private config: GridConfig
   private eventListeners: Map<GridEvent, Set<(data: any) => void>> = new Map()
+  private eventDebounceTimers: Map<GridEvent, NodeJS.Timeout> = new Map()
+  private lastEmittedVisibility: boolean | null = null
 
   constructor(config: GridConfig = DEFAULT_GRID_CONFIG) {
     this.config = { ...config }
@@ -45,6 +47,9 @@ export class GridService {
     } else {
       this.renderer.hide()
     }
+
+    // Initialize the last emitted visibility state
+    this.lastEmittedVisibility = this.isVisible
   }
 
   /**
@@ -54,17 +59,27 @@ export class GridService {
    * @returns New visibility state
    */
   toggleVisibility(): boolean {
-    this.isVisible = !this.isVisible
+    const newVisibility = !this.isVisible
     
-    if (this.renderer) {
-      if (this.isVisible) {
-        this.renderer.show()
-      } else {
-        this.renderer.hide()
+    // Only update if visibility actually changed
+    if (this.isVisible !== newVisibility) {
+      this.isVisible = newVisibility
+      
+      if (this.renderer) {
+        if (this.isVisible) {
+          this.renderer.show()
+        } else {
+          this.renderer.hide()
+        }
+      }
+
+      // Only emit event if the visibility state has actually changed from last emitted
+      if (this.lastEmittedVisibility !== this.isVisible) {
+        this.emitEvent('visibility-changed', { visible: this.isVisible })
+        this.lastEmittedVisibility = this.isVisible
       }
     }
-
-    this.emitEvent('visibility-changed', { visible: this.isVisible })
+    
     return this.isVisible
   }
 
@@ -75,6 +90,7 @@ export class GridService {
    * @param visible Whether grid should be visible
    */
   setVisibility(visible: boolean): void {
+    // Only update if visibility actually changed
     if (this.isVisible === visible) return
 
     this.isVisible = visible
@@ -87,7 +103,11 @@ export class GridService {
       }
     }
 
-    this.emitEvent('visibility-changed', { visible: this.isVisible })
+    // Only emit event if the visibility state has actually changed from last emitted
+    if (this.lastEmittedVisibility !== this.isVisible) {
+      this.emitEvent('visibility-changed', { visible: this.isVisible })
+      this.lastEmittedVisibility = this.isVisible
+    }
   }
 
   /**
@@ -271,22 +291,34 @@ export class GridService {
   }
 
   /**
-   * Emit event to all listeners
+   * Emit event to all listeners with debouncing
    * 
    * @param event Event type
    * @param data Event data
    */
   private emitEvent(event: GridEvent, data: any): void {
-    const listeners = this.eventListeners.get(event)
-    if (listeners) {
-      listeners.forEach(callback => {
-        try {
-          callback(data)
-        } catch (error) {
-          console.error(`Error in grid service event listener for ${event}:`, error)
-        }
-      })
+    // Clear existing timer for this event
+    const existingTimer = this.eventDebounceTimers.get(event)
+    if (existingTimer) {
+      clearTimeout(existingTimer)
     }
+
+    // Set new timer to debounce the event
+    const timer = setTimeout(() => {
+      const listeners = this.eventListeners.get(event)
+      if (listeners) {
+        listeners.forEach(callback => {
+          try {
+            callback(data)
+          } catch (error) {
+            console.error(`Error in grid service event listener for ${event}:`, error)
+          }
+        })
+      }
+      this.eventDebounceTimers.delete(event)
+    }, 50) // 50ms debounce delay
+
+    this.eventDebounceTimers.set(event, timer)
   }
 
   /**
@@ -395,6 +427,10 @@ export class GridService {
     // Clear all event listeners
     this.eventListeners.forEach(listeners => listeners.clear())
     this.eventListeners.clear()
+
+    // Clear all debounce timers
+    this.eventDebounceTimers.forEach(timer => clearTimeout(timer))
+    this.eventDebounceTimers.clear()
 
     // Cleanup renderer if we have one
     if (this.renderer) {

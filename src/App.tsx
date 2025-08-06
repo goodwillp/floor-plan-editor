@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { MenuBar } from '@/components/MenuBar'
 import { ToolPalette, type Tool } from '@/components/ToolPalette'
@@ -6,13 +6,31 @@ import type { WallTypeString } from '@/lib/types'
 import { DrawingCanvas } from '@/components/DrawingCanvas'
 import { Sidebar } from '@/components/Sidebar'
 import { StatusBar } from '@/components/StatusBar'
+import { PerformanceMonitor, usePerformanceMonitor } from '@/components/PerformanceMonitor'
+import { KeyboardShortcutsHelp } from '@/components/KeyboardShortcutsHelp'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
+import { KeyboardShortcutManager, createDefaultShortcuts } from '@/lib/KeyboardShortcuts'
+import { AccessibilityManager } from '@/lib/AccessibilityManager'
+import { isWebGLSupported, getWebGLInfo } from '@/lib/webgl-error-handler'
 
 function App() {
   // Tool state
   const [activeWallType, setActiveWallType] = useState<WallTypeString>('layout')
   const [activeTool, setActiveTool] = useState<Tool>('select')
   const [gridVisible, setGridVisible] = useState(false)
+  
+  // Performance state
+  const [isPerformanceModeEnabled, setIsPerformanceModeEnabled] = useState(false)
+  const [renderStats, setRenderStats] = useState<any>(null)
+  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false)
+  
+  // Accessibility and keyboard shortcuts
+  const [keyboardShortcutManager] = useState(() => new KeyboardShortcutManager())
+  const [accessibilityManager] = useState(() => new AccessibilityManager())
+  const [shortcutGroups, setShortcutGroups] = useState<any[]>([])
+  
+  // Performance monitoring
+  const performanceMetrics = usePerformanceMonitor()
   
   // Viewport state
   const [viewport, setViewport] = useState({
@@ -64,54 +82,139 @@ function App() {
   
   const selectedCount = selectedWallIds.length
 
-  // Menu handlers
-  const handleSave = () => setStatusMessage('Save functionality not yet implemented')
-  const handleLoad = () => setStatusMessage('Load functionality not yet implemented')
-  const handleExport = () => setStatusMessage('Export functionality not yet implemented')
-  const handleUndo = () => setStatusMessage('Undo functionality not yet implemented')
-  const handleRedo = () => setStatusMessage('Redo functionality not yet implemented')
-  const handleZoomIn = () => {
+  // Menu handlers - wrapped in useCallback to prevent infinite re-renders
+  const handleSave = useCallback(() => setStatusMessage('Save functionality not yet implemented'), [])
+  const handleLoad = useCallback(() => setStatusMessage('Load functionality not yet implemented'), [])
+  const handleExport = useCallback(() => setStatusMessage('Export functionality not yet implemented'), [])
+  const handleUndo = useCallback(() => setStatusMessage('Undo functionality not yet implemented'), [])
+  const handleRedo = useCallback(() => setStatusMessage('Redo functionality not yet implemented'), [])
+  const handleZoomIn = useCallback(() => {
     setViewport(prev => ({ ...prev, zoom: Math.min(prev.zoom * 1.2, 5) }))
     setStatusMessage('Zoomed in')
-  }
-  const handleZoomOut = () => {
+  }, [])
+  const handleZoomOut = useCallback(() => {
     setViewport(prev => ({ ...prev, zoom: Math.max(prev.zoom / 1.2, 0.1) }))
     setStatusMessage('Zoomed out')
-  }
-  const handleReset = () => {
+  }, [])
+  const handleReset = useCallback(() => {
     setViewport({ zoom: 1, panX: 0, panY: 0 })
     setStatusMessage('View reset')
-  }
+  }, [])
 
-  // Tool handlers
-  const handleActiveWallTypeChange = (type: WallTypeString) => {
+  // Tool handlers - wrapped in useCallback to prevent infinite re-renders
+  const handleActiveWallTypeChange = useCallback((type: WallTypeString) => {
     setActiveWallType(type)
     setStatusMessage(`Selected ${type} wall type`)
-  }
+  }, [])
 
-  const handleToolChange = (tool: Tool) => {
+  const handleToolChange = useCallback((tool: Tool) => {
     setActiveTool(tool)
     setStatusMessage(`Activated ${tool} tool`)
-  }
+  }, [])
 
-  const handleGridToggle = () => {
+  const handleGridToggle = useCallback(() => {
     setGridVisible(prev => !prev)
     setStatusMessage(gridVisible ? 'Grid hidden' : 'Grid visible')
-  }
+  }, [gridVisible])
 
-  // Viewport handlers
-  const handleViewportChange = (newViewport: { zoom: number; panX: number; panY: number }) => {
+  // Viewport handlers - wrapped in useCallback to prevent infinite re-renders
+  const handleViewportChange = useCallback((newViewport: { zoom: number; panX: number; panY: number }) => {
     setViewport(newViewport)
-  }
+  }, [])
 
-  // Reference image handlers
-  const handleReferenceImageUpdate = (state: { hasImage: boolean; isLocked: boolean; isVisible: boolean }) => {
+  // Reference image handlers - wrapped in useCallback to prevent infinite re-renders
+  const handleReferenceImageUpdate = useCallback((state: { hasImage: boolean; isLocked: boolean; isVisible: boolean }) => {
     setReferenceImage(state)
-  }
+  }, [])
 
   const drawingCanvasRef = useRef<any>(null) // Will hold reference to DrawingCanvas functions
+  const selectedWallIdsRef = useRef<string[]>([])
+  
+  // Update ref when selectedWallIds changes
+  useEffect(() => {
+    selectedWallIdsRef.current = selectedWallIds
+  }, [selectedWallIds])
+  
+  // Check WebGL support on mount
+  useEffect(() => {
+    const webglInfo = getWebGLInfo()
+    if (!webglInfo.supported) {
+      setStatusMessage('WebGL not supported - using fallback renderer')
+      console.warn('WebGL not supported, application will use canvas fallback')
+    } else {
+      console.log('WebGL supported:', webglInfo)
+    }
+  }, [])
 
-  const handleReferenceImageLoad = async (file: File) => {
+  // Initialize keyboard shortcuts (only once)
+  useEffect(() => {
+    const shortcuts = createDefaultShortcuts({
+      // File operations
+      save: handleSave,
+      load: handleLoad,
+      export: handleExport,
+      
+      // Edit operations
+      undo: handleUndo,
+      redo: handleRedo,
+      delete: () => {
+        if (selectedWallIdsRef.current.length > 0) {
+          handleWallDeleted(selectedWallIdsRef.current)
+        }
+      },
+      selectAll: () => {
+        // TODO: Implement select all
+        setStatusMessage('Select all not yet implemented')
+      },
+      copy: () => setStatusMessage('Copy not yet implemented'),
+      paste: () => setStatusMessage('Paste not yet implemented'),
+      
+      // View operations
+      zoomIn: handleZoomIn,
+      zoomOut: handleZoomOut,
+      zoomFit: () => setStatusMessage('Zoom fit not yet implemented'),
+      zoomActual: () => setViewport({ zoom: 1, panX: 0, panY: 0 }),
+      toggleGrid: handleGridToggle,
+      resetView: handleReset,
+      
+      // Tool operations
+      selectTool: () => handleToolChange('select'),
+      drawTool: () => handleToolChange('draw'),
+      // moveTool: () => handleToolChange('move'), // Move tool not implemented yet
+      deleteTool: () => handleToolChange('delete'),
+      
+      // Wall type operations
+      layoutWall: () => handleActiveWallTypeChange('layout'),
+      zoneWall: () => handleActiveWallTypeChange('zone'),
+      areaWall: () => handleActiveWallTypeChange('area')
+    })
+    
+    shortcuts.forEach(shortcut => keyboardShortcutManager.register(shortcut))
+    setShortcutGroups(keyboardShortcutManager.getShortcutGroups())
+    
+    return () => {
+      keyboardShortcutManager.destroy()
+      accessibilityManager.destroy()
+    }
+  }, []) // Empty dependency array - only run once
+  
+  // Performance mode handlers
+  const handleEnablePerformanceMode = useCallback(() => {
+    setIsPerformanceModeEnabled(true)
+    setStatusMessage('Performance mode enabled')
+  }, [])
+  
+  const handleDisablePerformanceMode = useCallback(() => {
+    setIsPerformanceModeEnabled(false)
+    setStatusMessage('Performance mode disabled')
+  }, [])
+  
+  // Render stats update handler
+  const handleRenderStatsUpdate = useCallback((stats: any) => {
+    setRenderStats(stats)
+  }, [])
+
+  const handleReferenceImageLoad = useCallback(async (file: File) => {
     try {
       if (drawingCanvasRef.current?.loadReferenceImage) {
         await drawingCanvasRef.current.loadReferenceImage(file)
@@ -120,33 +223,31 @@ function App() {
     } catch (error) {
       setStatusMessage(`Failed to load reference image: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
-  }
+  }, [])
 
-  const handleReferenceImageToggleLock = () => {
+  const handleReferenceImageToggleLock = useCallback(() => {
     if (drawingCanvasRef.current?.toggleReferenceImageLock) {
       const locked = drawingCanvasRef.current.toggleReferenceImageLock()
       setStatusMessage(`Reference image ${locked ? 'locked' : 'unlocked'}`)
     }
-  }
+  }, [])
 
-  const handleReferenceImageToggleVisibility = () => {
+  const handleReferenceImageToggleVisibility = useCallback(() => {
     if (drawingCanvasRef.current?.toggleReferenceImageVisibility) {
       const visible = drawingCanvasRef.current.toggleReferenceImageVisibility()
       setStatusMessage(`Reference image ${visible ? 'shown' : 'hidden'}`)
     }
-  }
+  }, [])
 
-
-
-  const handleMouseMove = (coordinates: { x: number; y: number }) => {
+  const handleMouseMove = useCallback((coordinates: { x: number; y: number }) => {
     setMouseCoordinates(coordinates)
-  }
+  }, [])
 
-  const handleWallCreated = (wallId: string) => {
+  const handleWallCreated = useCallback((wallId: string) => {
     setStatusMessage(`Wall created: ${wallId}`)
-  }
+  }, [])
 
-  const handleWallSelected = (wallIds: string[], properties: any[]) => {
+  const handleWallSelected = useCallback((wallIds: string[], properties: any[]) => {
     setSelectedWallIds(wallIds)
     setWallProperties(properties)
     if (wallIds.length > 0) {
@@ -154,58 +255,65 @@ function App() {
     } else {
       setStatusMessage('Selection cleared')
     }
-  }
+  }, [])
 
-  const handleWallDeleted = (wallIds: string[]) => {
+  const handleWallDeleted = useCallback((wallIds: string[]) => {
     setSelectedWallIds([])
     setWallProperties([])
     setStatusMessage(`Deleted ${wallIds.length} wall(s)`)
-  }
+  }, [])
 
-  const handleWallTypeChange = (wallIds: string[], newType: WallTypeString) => {
+  const handleWallTypeChange = useCallback((wallIds: string[], newType: WallTypeString) => {
     setStatusMessage(`Updated ${wallIds.length} wall(s) to ${newType} type`)
     // Wall properties will be updated by the canvas
-  }
+  }, [])
 
-  const handleWallVisibilityChange = (wallIds: string[], visible: boolean) => {
+  const handleWallVisibilityChange = useCallback((wallIds: string[], visible: boolean) => {
     setStatusMessage(`${visible ? 'Showed' : 'Hidden'} ${wallIds.length} wall(s)`)
     // Wall properties will be updated by the canvas
-  }
+  }, [])
 
-  const handleSelectionClear = () => {
+  const handleSelectionClear = useCallback(() => {
     setSelectedWallIds([])
     setWallProperties([])
     setStatusMessage('Selection cleared')
-  }
+  }, [])
 
-  const handleProximityMergingUpdate = (merges: any[], stats: any) => {
+  const handleProximityMergingUpdate = useCallback((merges: any[], stats: any) => {
     setActiveMerges(merges)
     setMergeStats(stats)
-  }
+  }, [])
 
-  const handleProximityMergingEnabledChange = (enabled: boolean) => {
+  const handleProximityMergingEnabledChange = useCallback((enabled: boolean) => {
     setProximityMergingEnabled(enabled)
     setStatusMessage(`Proximity merging ${enabled ? 'enabled' : 'disabled'}`)
-  }
+  }, [])
 
-  const handleProximityThresholdChange = (threshold: number) => {
+  const handleProximityThresholdChange = useCallback((threshold: number) => {
     setProximityThreshold(threshold)
     setStatusMessage(`Proximity threshold set to ${threshold}px`)
-  }
+  }, [])
 
-  const handleProximityMergingRefresh = () => {
+  const handleProximityMergingRefresh = useCallback(() => {
     setStatusMessage('Proximity merges refreshed')
-  }
+  }, [])
 
-  const handleProximityMergingClearAll = () => {
+  const handleProximityMergingClearAll = useCallback(() => {
     setActiveMerges([])
     setMergeStats({ totalMerges: 0, averageDistance: 0, mergesByType: {} })
     setStatusMessage('All proximity merges cleared')
-  }
+  }, [])
 
   return (
     <TooltipProvider>
       <div className="h-screen flex flex-col bg-background text-foreground">
+        {/* Skip links for accessibility */}
+        <div className="sr-only">
+          <a href="#main-canvas" className="skip-link">Skip to canvas</a>
+          <a href="#tool-palette" className="skip-link">Skip to tools</a>
+          <a href="#sidebar" className="skip-link">Skip to sidebar</a>
+        </div>
+
         {/* Menu Bar */}
         <MenuBar
           onSave={handleSave}
@@ -217,76 +325,100 @@ function App() {
           onZoomOut={handleZoomOut}
           onReset={handleReset}
         />
+        
+        {/* Additional controls */}
+        <div className="flex items-center justify-end px-2 py-1 border-b bg-background">
+          <div className="flex items-center gap-2">
+            <KeyboardShortcutsHelp shortcuts={shortcutGroups} />
+            
+            <button
+              onClick={() => setShowPerformanceMonitor(!showPerformanceMonitor)}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Toggle performance monitor"
+            >
+              Performance
+            </button>
+          </div>
+        </div>
 
         {/* Tool Palette */}
-        <ToolPalette 
-          activeWallType={activeWallType}
-          activeTool={activeTool}
-          gridVisible={gridVisible}
-          zoom={viewport.zoom}
-          zoomPercentage={Math.round(viewport.zoom * 100)}
-          canZoomIn={viewport.zoom < 5}
-          canZoomOut={viewport.zoom > 0.1}
-          hasReferenceImage={referenceImage.hasImage}
-          referenceImageLocked={referenceImage.isLocked}
-          referenceImageVisible={referenceImage.isVisible}
-          onWallTypeChange={handleActiveWallTypeChange}
-          onToolChange={handleToolChange}
-          onGridToggle={handleGridToggle}
-          onReferenceImageLoad={handleReferenceImageLoad}
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          onResetZoom={() => setViewport(prev => ({ ...prev, zoom: 1 }))}
-          onResetViewport={handleReset}
-          onReferenceImageToggleLock={handleReferenceImageToggleLock}
-          onReferenceImageToggleVisibility={handleReferenceImageToggleVisibility}
-        />
+        <div id="tool-palette">
+          <ToolPalette 
+            activeWallType={activeWallType}
+            activeTool={activeTool}
+            gridVisible={gridVisible}
+            zoom={viewport.zoom}
+            zoomPercentage={Math.round(viewport.zoom * 100)}
+            canZoomIn={viewport.zoom < 5}
+            canZoomOut={viewport.zoom > 0.1}
+            hasReferenceImage={referenceImage.hasImage}
+            referenceImageLocked={referenceImage.isLocked}
+            referenceImageVisible={referenceImage.isVisible}
+            onWallTypeChange={handleActiveWallTypeChange}
+            onToolChange={handleToolChange}
+            onGridToggle={handleGridToggle}
+            onReferenceImageLoad={handleReferenceImageLoad}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            onResetZoom={() => setViewport(prev => ({ ...prev, zoom: 1 }))}
+            onResetViewport={handleReset}
+            onReferenceImageToggleLock={handleReferenceImageToggleLock}
+            onReferenceImageToggleVisibility={handleReferenceImageToggleVisibility}
+          />
+        </div>
 
         {/* Main Content Area */}
         <div className="flex flex-1 overflow-hidden">
           {/* Canvas */}
-          <DrawingCanvas 
-            className="flex-1"
-            activeWallType={activeWallType}
-            activeTool={activeTool}
-            gridVisible={gridVisible}
-            proximityMergingEnabled={proximityMergingEnabled}
-            proximityThreshold={proximityThreshold}
-            onMouseMove={handleMouseMove}
-            onWallCreated={handleWallCreated}
-            onWallSelected={handleWallSelected}
-            onWallDeleted={handleWallDeleted}
-            onGridToggle={handleGridToggle}
-            onProximityMergingUpdate={handleProximityMergingUpdate}
-            onStatusMessage={setStatusMessage}
-            onViewportChange={handleViewportChange}
-            onReferenceImageUpdate={handleReferenceImageUpdate}
-          />
+          <div id="main-canvas" className="flex-1">
+            <DrawingCanvas 
+              ref={drawingCanvasRef}
+              className="flex-1"
+              activeWallType={activeWallType}
+              activeTool={activeTool}
+              gridVisible={gridVisible}
+              proximityMergingEnabled={proximityMergingEnabled}
+              proximityThreshold={proximityThreshold}
+              isPerformanceModeEnabled={isPerformanceModeEnabled}
+              onMouseMove={handleMouseMove}
+              onWallCreated={handleWallCreated}
+              onWallSelected={handleWallSelected}
+              onWallDeleted={handleWallDeleted}
+              onGridToggle={handleGridToggle}
+              onProximityMergingUpdate={handleProximityMergingUpdate}
+              onStatusMessage={setStatusMessage}
+              onViewportChange={handleViewportChange}
+              onReferenceImageUpdate={handleReferenceImageUpdate}
+              onRenderStatsUpdate={handleRenderStatsUpdate}
+            />
+          </div>
           
           {/* Sidebar */}
-          <Sidebar 
-            selectedWallIds={selectedWallIds}
-            wallProperties={wallProperties}
-            onWallTypeChange={handleWallTypeChange}
-            onWallVisibilityChange={handleWallVisibilityChange}
-            onWallDelete={handleWallDeleted}
-            onSelectionClear={handleSelectionClear}
-            proximityMergingEnabled={proximityMergingEnabled}
-            proximityThreshold={proximityThreshold}
-            activeMerges={activeMerges}
-            mergeStats={mergeStats}
-            onProximityMergingEnabledChange={handleProximityMergingEnabledChange}
-            onProximityThresholdChange={handleProximityThresholdChange}
-            onProximityMergingRefresh={handleProximityMergingRefresh}
-            onProximityMergingClearAll={handleProximityMergingClearAll}
-            // Error handling props
-            errorLog={errorLog}
-            memoryInfo={memoryInfo}
-            isRecovering={isRecovering}
-            errorStats={errorStats}
-            onClearErrors={clearErrorLog}
-            onSetMemoryThresholds={setMemoryThresholds}
-          />
+          <div id="sidebar">
+            <Sidebar 
+              selectedWallIds={selectedWallIds}
+              wallProperties={wallProperties}
+              onWallTypeChange={handleWallTypeChange}
+              onWallVisibilityChange={handleWallVisibilityChange}
+              onWallDelete={handleWallDeleted}
+              onSelectionClear={handleSelectionClear}
+              proximityMergingEnabled={proximityMergingEnabled}
+              proximityThreshold={proximityThreshold}
+              activeMerges={activeMerges}
+              mergeStats={mergeStats}
+              onProximityMergingEnabledChange={handleProximityMergingEnabledChange}
+              onProximityThresholdChange={handleProximityThresholdChange}
+              onProximityMergingRefresh={handleProximityMergingRefresh}
+              onProximityMergingClearAll={handleProximityMergingClearAll}
+              // Error handling props
+              errorLog={errorLog}
+              memoryInfo={memoryInfo}
+              isRecovering={isRecovering}
+              errorStats={errorStats}
+              onClearErrors={clearErrorLog}
+              onSetMemoryThresholds={setMemoryThresholds}
+            />
+          </div>
         </div>
 
         {/* Status Bar */}
@@ -296,6 +428,19 @@ function App() {
           zoom={viewport.zoom}
           selectedCount={selectedCount}
         />
+        
+        {/* Performance Monitor */}
+        {showPerformanceMonitor && (
+          <PerformanceMonitor
+            renderStats={renderStats}
+            frameStats={performanceMetrics.frameStats}
+            memoryStats={performanceMetrics.memoryStats}
+            recommendations={renderStats?.recommendations || []}
+            onEnablePerformanceMode={handleEnablePerformanceMode}
+            onDisablePerformanceMode={handleDisablePerformanceMode}
+            isPerformanceModeEnabled={isPerformanceModeEnabled}
+          />
+        )}
       </div>
     </TooltipProvider>
   )

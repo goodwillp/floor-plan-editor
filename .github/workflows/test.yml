@@ -1,0 +1,121 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: floor-plan-editor/package-lock.json
+        
+    - name: Install dependencies
+      working-directory: floor-plan-editor
+      run: npm ci --legacy-peer-deps
+      
+    - name: Run linting
+      working-directory: floor-plan-editor
+      run: npm run lint
+      
+    - name: Run unit and integration tests with coverage
+      working-directory: floor-plan-editor
+      run: npm run test:coverage
+      
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: floor-plan-editor/coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+        
+    - name: Run visual regression tests
+      working-directory: floor-plan-editor
+      run: npm run test:visual
+      
+    - name: Build application
+      working-directory: floor-plan-editor
+      run: npm run build
+      
+    - name: Start application for E2E tests
+      working-directory: floor-plan-editor
+      run: |
+        npm run preview &
+        sleep 10
+        
+    - name: Run E2E tests
+      working-directory: floor-plan-editor
+      run: npm run test:e2e
+      
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: test-artifacts-${{ matrix.node-version }}
+        path: |
+          floor-plan-editor/coverage/
+          floor-plan-editor/cypress/screenshots/
+          floor-plan-editor/cypress/videos/
+        retention-days: 7
+
+  docker-test:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Build Docker image
+      working-directory: floor-plan-editor
+      run: docker build -t floor-plan-editor:test .
+      
+    - name: Test Docker container
+      run: |
+        docker run -d -p 3000:3000 --name test-container floor-plan-editor:test
+        sleep 10
+        curl -f http://localhost:3000 || exit 1
+        docker stop test-container
+        docker rm test-container
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: floor-plan-editor/package-lock.json
+        
+    - name: Install dependencies
+      working-directory: floor-plan-editor
+      run: npm ci --legacy-peer-deps
+      
+    - name: Run security audit
+      working-directory: floor-plan-editor
+      run: npm audit --audit-level=moderate
+      
+    - name: Run dependency check
+      working-directory: floor-plan-editor
+      run: npx audit-ci --moderate

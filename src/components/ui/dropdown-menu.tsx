@@ -45,3 +45,28 @@ const DropdownMenu = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLD
     )
   }
 )
+
+const DropdownMenuTrigger = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div ref={ref} className={cn("cursor-pointer", className)} {...props} />
+  )
+)
+
+const DropdownMenuContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div ref={ref} className={cn("py-1", className)} {...props} />
+  )
+)
+
+const DropdownMenuItem = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div ref={ref} className={cn("px-3 py-2 hover:bg-gray-100 cursor-pointer", className)} {...props} />
+  )
+)
+
+DropdownMenu.displayName = "DropdownMenu"
+DropdownMenuTrigger.displayName = "DropdownMenuTrigger"
+DropdownMenuContent.displayName = "DropdownMenuContent"
+DropdownMenuItem.displayName = "DropdownMenuItem"
+
+export { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem }

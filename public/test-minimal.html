@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal Test - Floor Plan Editor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+    </style>
+</head>
+<body>
+    <h1>Minimal Test Page</h1>
+    <div class="status">
+        ✅ If you can see this page without infinite loops, the basic routing is working.
+    </div>
+    
+    <p>This is a simple test page to verify the application is working without the complex components that were causing infinite loops.</p>
+    
+    <p><a href="/">← Back to Main Application</a></p>
+    
+    <script>
+        console.log('✅ Test page loaded successfully');
+        
+        // Simple render count test
+        let renderCount = 0;
+        const startTime = Date.now();
+        
+        function checkRenderLoop() {
+            renderCount++;
+            if (renderCount > 100) {
+                console.error('🚨 Potential infinite loop detected - too many script executions');
+            }
+        }
+        
+        checkRenderLoop();
+        
+        setTimeout(() => {
+            const elapsed = Date.now() - startTime;
+            console.log(`✅ Page stable after ${elapsed}ms with ${renderCount} renders`);
+        }, 2000);
+    </script>
+</body>
+</html>

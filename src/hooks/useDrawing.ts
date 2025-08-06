@@ -60,7 +60,14 @@ export function useDrawing({
 
   // Clear drawing when not in drawing mode
   useEffect(() => {
+    console.log('🔍 useDrawing useEffect triggered', {
+      isDrawingMode,
+      isDrawing,
+      timestamp: Date.now()
+    })
+    
     if (!isDrawingMode && isDrawing) {
+      console.log('🔍 Canceling drawing due to mode change')
       if (drawingServiceRef.current) {
         drawingServiceRef.current.cancelDrawing()
         setIsDrawing(false)
@@ -72,7 +79,7 @@ export function useDrawing({
         }
       }
     }
-  }, [isDrawingMode, isDrawing])
+  }, [isDrawingMode]) // Removed isDrawing to prevent infinite loop
 
   const startDrawing = useCallback((point: Point) => {
     if (!drawingServiceRef.current || !isDrawingMode) return

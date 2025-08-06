@@ -81,11 +81,18 @@ export function useWallSelection({
 
   // Clear selection when not in selection mode
   useEffect(() => {
+    console.log('🔍 useWallSelection useEffect triggered', {
+      isSelectionMode,
+      selectedWallIdsLength: selectedWallIds.length,
+      timestamp: Date.now()
+    })
+    
     if (!isSelectionMode && selectedWallIds.length > 0) {
+      console.log('🔍 Clearing selected walls due to mode change')
       setSelectedWallIds([])
       setHoveredWallId(null)
     }
-  }, [isSelectionMode, selectedWallIds.length])
+  }, [isSelectionMode]) // Removed selectedWallIds.length to prevent infinite loop
 
   const selectWall = useCallback((wallId: string) => {
     setSelectedWallIds(prev => {

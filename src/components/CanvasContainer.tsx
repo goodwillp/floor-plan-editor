@@ -65,6 +65,13 @@ export function CanvasContainer({
     if (!containerRef.current || appRef.current) return
 
     try {
+      // Check WebGL support before initializing
+      const testCanvas = document.createElement('canvas')
+      const gl = testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl')
+      if (!gl) {
+        console.warn('WebGL not supported, falling back to canvas renderer')
+      }
+      
       // Create PixiJS application with proper configuration
       const app = new PIXI.Application()
       
@@ -75,7 +82,11 @@ export function CanvasContainer({
         antialias: true,
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
-        powerPreference: 'high-performance'
+        powerPreference: gl ? 'default' : 'low-power', // Use default for WebGL, low-power for canvas
+        failIfMajorPerformanceCaveat: false, // Allow fallback to software rendering
+        preserveDrawingBuffer: false, // Reduce memory usage
+        clearBeforeRender: true,
+        preference: gl ? 'webgl' : 'canvas' // Prefer WebGL if available, otherwise use Canvas fallback
       })
 
       // Store app reference
@@ -121,9 +132,21 @@ export function CanvasContainer({
       // Store layers reference
       layersRef.current = layers
 
+      // Add WebGL context loss handling
+      const canvas = app.canvas as HTMLCanvasElement
+      canvas.addEventListener('webglcontextlost', (event) => {
+        console.warn('WebGL context lost, preventing default behavior')
+        event.preventDefault()
+      })
+      
+      canvas.addEventListener('webglcontextrestored', () => {
+        console.log('WebGL context restored')
+        // Reinitialize if needed
+      })
+
       // Add canvas to DOM
       if (containerRef.current) {
-        containerRef.current.appendChild(app.canvas)
+        containerRef.current.appendChild(canvas)
       }
 
       // Set up basic canvas event handling

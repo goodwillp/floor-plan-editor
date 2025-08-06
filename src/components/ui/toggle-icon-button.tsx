@@ -1,5 +1,5 @@
 import * as React from "react"
-import { IconButton } from "./icon-button"
+import { SimpleIconButton } from "./simple-icon-button"
 import { cn } from "@/lib/utils"
 
 // Temporarily disabled due to interface conflicts - will be fixed in future tasks
@@ -25,21 +25,25 @@ const ToggleIconButton = React.forwardRef<HTMLButtonElement, ToggleIconButtonPro
     className,
     ...props 
   }, ref) => {
-    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const handleClick = React.useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
       onToggle(!isToggled)
       onClick?.(event)
-    }
+    }, [onToggle, isToggled, onClick])
 
-    const displayTooltip = isToggled 
-      ? (activeTooltip || tooltip)
-      : (inactiveTooltip || tooltip)
+    const displayTooltip = React.useMemo(() => 
+      isToggled 
+        ? (activeTooltip || tooltip)
+        : (inactiveTooltip || tooltip),
+      [isToggled, activeTooltip, inactiveTooltip, tooltip]
+    )
 
     return (
-      <IconButton
+      <SimpleIconButton
         ref={ref}
         isActive={isToggled}
-        tooltip={displayTooltip}
         onClick={handleClick}
+        aria-label={displayTooltip}
+        title={displayTooltip}
         className={cn(
           'transition-all duration-200',
           isToggled && 'shadow-sm ring-1 ring-primary/20',

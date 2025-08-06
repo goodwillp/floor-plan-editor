@@ -1,14 +1,22 @@
 import * as PIXI from 'pixi.js'
 import type { Wall, Segment, Node, WallTypeString } from './types'
 import { WALL_THICKNESS } from './types'
+import { PerformanceOptimizer, type RenderStats } from './PerformanceOptimizer'
 
 /**
  * WallRenderer handles the visual representation of walls with outer shell rendering
  * Requirements: 1.4, 1.5 - Display outer shell and hide core line segments
+ * Requirements: 6.7, 9.5 - Optimize rendering performance for large floor plans
  */
 export class WallRenderer {
   private wallGraphics: Map<string, PIXI.Graphics> = new Map()
   private segmentGraphics: Map<string, PIXI.Graphics> = new Map()
+  private performanceOptimizer: PerformanceOptimizer
+  private isPerformanceModeEnabled = false
+
+  constructor() {
+    this.performanceOptimizer = new PerformanceOptimizer()
+  }
 
   /**
    * Render a wall with outer shell representation
@@ -195,6 +203,105 @@ export class WallRenderer {
   }
 
   /**
+   * Render all walls with performance optimization
+   * Requirements: 6.7, 9.5
+   */
+  renderAllWalls(
+    walls: Map<string, Wall>,
+    segments: Map<string, Segment>,
+    nodes: Map<string, Node>,
+    container: PIXI.Container,
+    viewport: { zoom: number; panX: number; panY: number; canvasWidth: number; canvasHeight: number }
+  ): RenderStats {
+    // Update viewport for culling
+    this.performanceOptimizer.updateViewport(
+      viewport.zoom,
+      viewport.panX,
+      viewport.panY,
+      viewport.canvasWidth,
+      viewport.canvasHeight
+    )
+
+    // Use performance optimizer for efficient rendering
+    return this.performanceOptimizer.optimizeWallRendering(
+      walls,
+      segments,
+      nodes,
+      container,
+      (wall, wallSegments, graphics) => {
+        this.renderWallToGraphics(wall, wallSegments, nodes, graphics)
+      }
+    )
+  }
+
+  /**
+   * Render wall to provided graphics object (used by performance optimizer)
+   */
+  private renderWallToGraphics(
+    wall: Wall,
+    segments: Segment[],
+    nodes: Map<string, Node>,
+    graphics: PIXI.Graphics
+  ): void {
+    if (!wall.visible || segments.length === 0) {
+      return
+    }
+
+    // Set wall style based on type
+    const style = this.getWallStyle(wall.type)
+    
+    // Render outer shell for each segment
+    segments.forEach(segment => {
+      const startNode = nodes.get(segment.startNodeId)
+      const endNode = nodes.get(segment.endNodeId)
+      
+      if (startNode && endNode) {
+        this.renderSegmentOuterShell(
+          graphics,
+          startNode,
+          endNode,
+          wall.thickness,
+          style
+        )
+      }
+    })
+  }
+
+  /**
+   * Enable performance mode for better rendering speed
+   * Requirements: 6.7
+   */
+  enablePerformanceMode(container: PIXI.Container): void {
+    this.isPerformanceModeEnabled = true
+    this.performanceOptimizer.enablePerformanceMode(container)
+  }
+
+  /**
+   * Disable performance mode for better visual quality
+   * Requirements: 6.7
+   */
+  disablePerformanceMode(container: PIXI.Container): void {
+    this.isPerformanceModeEnabled = false
+    this.performanceOptimizer.disablePerformanceMode(container)
+  }
+
+  /**
+   * Get performance metrics
+   * Requirements: 9.5
+   */
+  getPerformanceMetrics() {
+    return this.performanceOptimizer.getPerformanceMetrics()
+  }
+
+  /**
+   * Get optimization recommendations
+   * Requirements: 9.5
+   */
+  getOptimizationRecommendations(): string[] {
+    return this.performanceOptimizer.getOptimizationRecommendations()
+  }
+
+  /**
    * Clear all wall graphics
    */
   clearAll(container: PIXI.Container): void {
@@ -211,6 +318,13 @@ export class WallRenderer {
       graphics.destroy()
     })
     this.segmentGraphics.clear()
+  }
+
+  /**
+   * Cleanup resources
+   */
+  destroy(): void {
+    this.performanceOptimizer.destroy()
   }
 
   /**

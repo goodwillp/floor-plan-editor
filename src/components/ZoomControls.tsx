@@ -1,13 +1,12 @@
-import { ZoomIn, ZoomOut, RotateCcw, Maximize2 } from 'lucide-react'
+import { ZoomIn, ZoomOut, RotateCcw, Maximize2, Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
 import { 
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger
 } from '@/components/ui/tooltip'
-import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
 interface ZoomControlsProps {
@@ -46,129 +45,86 @@ export function ZoomControls({
     : `flex flex-row items-center gap-1 ${className}`
 
   return (
-    <TooltipProvider>
-      <div className={containerClasses}>
-        {/* Zoom In Button */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onZoomIn}
-              disabled={!canZoomIn}
-              className="h-8 w-8 p-0"
-              aria-label="Zoom In"
-            >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side={vertical ? 'left' : 'top'}>
-            <p>Zoom In (Ctrl + Plus)</p>
-          </TooltipContent>
-        </Tooltip>
+    <div className={containerClasses}>
+      {/* Zoom In Button */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onZoomIn}
+        disabled={!canZoomIn}
+        className="h-8 w-8 p-0"
+        aria-label="Zoom In"
+        title="Zoom In (Ctrl + Plus)"
+      >
+        <ZoomIn className="h-4 w-4" />
+      </Button>
 
-        {/* Zoom Percentage Display */}
-        {showPercentage && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge 
-                variant="secondary" 
-                className="min-w-[50px] justify-center text-xs cursor-pointer hover:bg-secondary/80"
-                onClick={onResetZoom}
-              >
-                {zoomPercentage}%
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent side={vertical ? 'left' : 'top'}>
-              <p>Current zoom level (click to reset)</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
+      {/* Zoom Percentage Display */}
+      {showPercentage && (
+        <Badge 
+          variant="secondary" 
+          className="min-w-[50px] justify-center text-xs cursor-pointer hover:bg-secondary/80"
+          onClick={onResetZoom}
+          title="Current zoom level (click to reset)"
+        >
+          {zoomPercentage}%
+        </Badge>
+      )}
 
-        {/* Zoom Out Button */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onZoomOut}
-              disabled={!canZoomOut}
-              className="h-8 w-8 p-0"
-              aria-label="Zoom Out"
-            >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side={vertical ? 'left' : 'top'}>
-            <p>Zoom Out (Ctrl + Minus)</p>
-          </TooltipContent>
-        </Tooltip>
+      {/* Zoom Out Button */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onZoomOut}
+        disabled={!canZoomOut}
+        className="h-8 w-8 p-0"
+        aria-label="Zoom Out"
+        title="Zoom Out (Ctrl + Minus)"
+      >
+        <ZoomOut className="h-4 w-4" />
+      </Button>
 
-        {vertical && <Separator className="my-1" />}
-        {!vertical && <Separator orientation="vertical" className="mx-1 h-6" />}
+      {vertical && <Separator className="my-1" />}
+      {!vertical && <Separator orientation="vertical" className="mx-1 h-6" />}
 
-        {/* Reset Zoom Button */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onResetZoom}
-              className="h-8 w-8 p-0"
-              aria-label="Reset Zoom"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side={vertical ? 'left' : 'top'}>
-            <p>Reset Zoom (Ctrl + 0)</p>
-          </TooltipContent>
-        </Tooltip>
+      {/* Reset Zoom Button */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onResetZoom}
+        className="h-8 w-8 p-0"
+        aria-label="Reset Zoom"
+        title="Reset Zoom (Ctrl + 0)"
+      >
+        <RotateCcw className="h-4 w-4" />
+      </Button>
 
-        {/* Fit to Content Button */}
-        {onFitToContent && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onFitToContent}
-                className="h-8 w-8 p-0"
-                aria-label="Fit to Content"
-              >
-                <Maximize2 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side={vertical ? 'left' : 'top'}>
-              <p>Fit to Content (Ctrl + F)</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
+      {/* Fit to Content Button */}
+      {onFitToContent && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onFitToContent}
+          className="h-8 w-8 p-0"
+          aria-label="Fit to Content"
+          title="Fit to Content"
+        >
+          <Maximize2 className="h-4 w-4" />
+        </Button>
+      )}
 
-        {vertical && <Separator className="my-1" />}
-        {!vertical && <Separator orientation="vertical" className="mx-1 h-6" />}
-
-        {/* Reset Viewport Button */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onResetViewport}
-              className="h-8 w-8 p-0"
-              aria-label="Reset Viewport"
-            >
-              <div className="flex items-center justify-center">
-                <span className="text-xs font-bold">⌂</span>
-              </div>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side={vertical ? 'left' : 'top'}>
-            <p>Reset View (Ctrl + Home)</p>
-          </TooltipContent>
-        </Tooltip>
-      </div>
-    </TooltipProvider>
+      {/* Reset Viewport Button */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onResetViewport}
+        className="h-8 w-8 p-0"
+        aria-label="Reset Viewport"
+        title="Reset Viewport"
+      >
+        <RotateCcw className="h-4 w-4" />
+      </Button>
+    </div>
   )
 }
 
@@ -195,94 +151,61 @@ export function CompactZoomControls({
   className?: string
 }) {
   return (
-    <TooltipProvider>
-      <div className={cn("flex items-center gap-1", className)}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onZoomIn}
-              disabled={!canZoomIn}
-              className="h-6 w-6 p-0"
-              aria-label="Zoom In"
-            >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Zoom In (Ctrl + Plus)</p>
-          </TooltipContent>
-        </Tooltip>
+    <div className={cn('flex items-center gap-1', className)}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onZoomOut}
+        disabled={!canZoomOut}
+        className="h-6 w-6 p-0"
+        aria-label="Zoom Out"
+        title="Zoom Out"
+      >
+        <Minus className="h-3 w-3" />
+      </Button>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge 
-              variant="secondary" 
-              className="min-w-[50px] justify-center text-xs cursor-pointer hover:bg-secondary/80"
-              onClick={onResetZoom}
-            >
-              {zoomPercentage}%
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Current zoom level (click to reset)</p>
-          </TooltipContent>
-        </Tooltip>
+      <Badge variant="secondary" className="min-w-[40px] justify-center text-xs">
+        {zoomPercentage}%
+      </Badge>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onZoomOut}
-              disabled={!canZoomOut}
-              className="h-6 w-6 p-0"
-              aria-label="Zoom Out"
-            >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Zoom Out (Ctrl + Minus)</p>
-          </TooltipContent>
-        </Tooltip>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onZoomIn}
+        disabled={!canZoomIn}
+        className="h-6 w-6 p-0"
+        aria-label="Zoom In"
+        title="Zoom In"
+      >
+        <Plus className="h-3 w-3" />
+      </Button>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onResetZoom}
-              className="h-6 w-6 p-0"
-              aria-label="Reset Zoom"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Reset Zoom (Ctrl + 0)</p>
-          </TooltipContent>
-        </Tooltip>
+      <Separator orientation="vertical" className="mx-1 h-4" />
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onFitToScreen}
-              className="h-6 w-6 p-0"
-              aria-label="Fit to Content"
-            >
-              <Maximize2 className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Fit to Content (Ctrl + F)</p>
-          </TooltipContent>
-        </Tooltip>
-      </div>
-    </TooltipProvider>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onResetZoom}
+        className="h-6 w-6 p-0"
+        aria-label="Reset Zoom"
+        title="Reset Zoom"
+      >
+        <RotateCcw className="h-3 w-3" />
+      </Button>
+
+      {onFitToScreen && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onFitToScreen}
+          className="h-6 w-6 p-0"
+          aria-label="Fit to Screen"
+          title="Fit to Screen"
+        >
+          <Maximize2 className="h-3 w-3" />
+        </Button>
+      )}
+    </div>
   )
 }
 
@@ -312,33 +235,49 @@ export function ZoomSlider({
   const percentage = Math.round(zoom * 100)
 
   return (
-    <TooltipProvider>
-      <div className={`flex items-center gap-2 ${className}`}>
-        <ZoomOut className="h-4 w-4 text-muted-foreground" />
-        
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <input
-              type="range"
-              min={minZoom}
-              max={maxZoom}
-              step={0.1}
-              value={zoom}
-              onChange={handleSliderChange}
-              className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-            />
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Zoom: {percentage}%</p>
-          </TooltipContent>
-        </Tooltip>
-        
-        <ZoomIn className="h-4 w-4 text-muted-foreground" />
-        
-        <Badge variant="outline" className="min-w-[50px] justify-center text-xs">
-          {percentage}%
-        </Badge>
+    <div className={cn('flex items-center gap-2', className)}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onZoomChange(Math.max(minZoom, zoom - 0.1))}
+        disabled={zoom <= minZoom}
+        className="h-8 w-8 p-0"
+        aria-label="Zoom Out"
+        title="Zoom Out"
+      >
+        <ZoomOut className="h-4 w-4" />
+      </Button>
+
+      <div className="flex-1">
+        <input
+          type="range"
+          min={minZoom}
+          max={maxZoom}
+          step={0.1}
+          value={zoom}
+          onChange={handleSliderChange}
+          className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
+          style={{
+            background: `linear-gradient(to right, hsl(var(--secondary)) 0%, hsl(var(--secondary)) ${((zoom - minZoom) / (maxZoom - minZoom)) * 100}%, hsl(var(--muted)) ${((zoom - minZoom) / (maxZoom - minZoom)) * 100}%, hsl(var(--muted)) 100%)`
+          }}
+        />
       </div>
-    </TooltipProvider>
+
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onZoomChange(Math.min(maxZoom, zoom + 0.1))}
+        disabled={zoom >= maxZoom}
+        className="h-8 w-8 p-0"
+        aria-label="Zoom In"
+        title="Zoom In"
+      >
+        <ZoomIn className="h-4 w-4" />
+      </Button>
+
+      <Badge variant="secondary" className="min-w-[50px] justify-center text-xs">
+        {Math.round(zoom * 100)}%
+      </Badge>
+    </div>
   )
 }

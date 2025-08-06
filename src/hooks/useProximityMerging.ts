@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { FloorPlanModel } from '@/lib/FloorPlanModel'
 import { ProximityMergingService, type ProximityMerge } from '@/lib/ProximityMergingService'
 import { ProximityMergeRenderer } from '@/lib/ProximityMergeRenderer'
@@ -162,16 +162,23 @@ export function useProximityMerging({
   }, [])
 
   // Calculate merge statistics
-  const mergeStats = {
-    totalMerges: activeMerges.length,
-    averageDistance: activeMerges.length > 0 
-      ? activeMerges.reduce((sum, merge) => sum + merge.distance, 0) / activeMerges.length 
-      : 0,
-    mergesByType: activeMerges.reduce((acc, merge) => {
-      acc[merge.mergeType] = (acc[merge.mergeType] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
-  }
+  const mergeStats = useMemo(() => {
+    console.log('🔍 useProximityMerging mergeStats calculation', {
+      activeMergesLength: activeMerges.length,
+      timestamp: Date.now()
+    })
+    
+    return {
+      totalMerges: activeMerges.length,
+      averageDistance: activeMerges.length > 0
+        ? activeMerges.reduce((sum, merge) => sum + merge.distance, 0) / activeMerges.length
+        : 0,
+      mergesByType: activeMerges.reduce((acc, merge) => {
+        acc[merge.mergeType] = (acc[merge.mergeType] || 0) + 1
+        return acc
+      }, {} as Record<string, number>)
+    }
+  }, [activeMerges])
 
   return {
     activeMerges,

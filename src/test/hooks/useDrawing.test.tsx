@@ -62,7 +62,10 @@ describe('useDrawing', () => {
         id: `wall_${type}_${segmentIds.join('_')}`,
         type,
         segmentIds,
-        visible: true
+        visible: true,
+        thickness: 10,
+        createdAt: new Date(),
+        updatedAt: new Date()
       })),
       processIntersections: vi.fn(() => []),
       getNode: vi.fn(),

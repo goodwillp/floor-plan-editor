@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { CanvasContainer, type CanvasLayers, type CanvasViewportAPI } from './CanvasContainer'
 import { useDrawing } from '@/hooks/useDrawing'
 import { useWallSelection } from '@/hooks/useWallSelection'
@@ -35,7 +35,7 @@ interface DrawingCanvasProps {
  * DrawingCanvas integrates wall drawing functionality with the PixiJS canvas
  * Requirements: 2.1, 6.4, 11.4, 14.1
  */
-export function DrawingCanvas({
+export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   className,
   activeWallType,
   activeTool,
@@ -51,7 +51,7 @@ export function DrawingCanvas({
   onStatusMessage,
   onViewportChange,
   onReferenceImageUpdate
-}: DrawingCanvasProps) {
+}, ref) => {
   const modelRef = useRef(new FloorPlanModel())
   const wallRendererRef = useRef<WallRenderer | null>(null)
   const viewportAPIRef = useRef<CanvasViewportAPI | null>(null)
@@ -157,6 +157,38 @@ export function DrawingCanvas({
       onStatusMessage?.(`Recovering from ${errorInfo.type} error...`)
     }
   })
+
+  // Expose ref methods for parent components
+  useImperativeHandle(ref, () => ({
+    loadReferenceImage: async (file: File) => {
+      if (referenceImage.loadImage) {
+        await referenceImage.loadImage(file)
+        onReferenceImageUpdate?.({ hasImage: true, isLocked: true, isVisible: true })
+      }
+    },
+    removeReferenceImage: () => {
+      if (referenceImage.removeImage) {
+        referenceImage.removeImage()
+        onReferenceImageUpdate?.({ hasImage: false, isLocked: true, isVisible: true })
+      }
+    },
+    toggleReferenceImageLock: () => {
+      if (referenceImage.toggleLock) {
+        const isLocked = referenceImage.toggleLock()
+        onReferenceImageUpdate?.({ hasImage: true, isLocked, isVisible: true })
+        return isLocked
+      }
+      return true
+    },
+    toggleReferenceImageVisibility: () => {
+      if (referenceImage.toggleVisibility) {
+        const isVisible = referenceImage.toggleVisibility()
+        onReferenceImageUpdate?.({ hasImage: true, isLocked: true, isVisible })
+        return isVisible
+      }
+      return true
+    }
+  }), [referenceImage, onReferenceImageUpdate])
 
   // Initialize wall renderer when canvas is ready
   const handleCanvasReady = useCallback((canvasLayers: CanvasLayers, pixiApp: PIXI.Application, viewportAPI: CanvasViewportAPI) => {
@@ -301,10 +333,17 @@ export function DrawingCanvas({
 
   // Notify parent about proximity merging updates
   useEffect(() => {
+    console.log('🔍 DrawingCanvas useEffect triggered', {
+      activeMergesLength: activeMerges.length,
+      mergeStats,
+      onProximityMergingUpdate: !!onProximityMergingUpdate,
+      timestamp: Date.now()
+    })
+    
     if (onProximityMergingUpdate) {
       onProximityMergingUpdate(activeMerges, mergeStats)
     }
-  }, [activeMerges, mergeStats, onProximityMergingUpdate])
+  }, [activeMerges, onProximityMergingUpdate]) // Removed mergeStats to prevent infinite loop
 
   // Handle grid visibility changes from parent
   useEffect(() => {
@@ -336,7 +375,9 @@ export function DrawingCanvas({
       onViewportChange={onViewportChange}
     />
   )
-}
+})
+
+DrawingCanvas.displayName = 'DrawingCanvas'
 
 export type { DrawingCanvasProps }
 

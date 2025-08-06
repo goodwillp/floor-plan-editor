@@ -41,16 +41,25 @@ export function useErrorHandler({
   })
 
   useEffect(() => {
+    console.log('🔍 useErrorHandler useEffect triggered', {
+      errorStats,
+      isRecovering,
+      memoryInfo,
+      timestamp: Date.now()
+    })
+    
     const eventBus = EventBus.getInstance()
     errorHandlerRef.current = new ErrorHandler(eventBus)
 
     const handleErrorOccurred = (errorInfo: ErrorInfo) => {
+      console.log('🔍 Error occurred:', errorInfo)
       setErrorLog(prev => [...prev, errorInfo])
       setErrorStats(errorHandlerRef.current?.getErrorStats() || errorStats)
       onError?.(errorInfo)
     }
 
     const handleMemoryUpdate = (memoryInfo: MemoryInfo) => {
+      console.log('🔍 Memory update:', memoryInfo)
       setMemoryInfo(memoryInfo)
       if (memoryInfo.percentage > memoryInfo.warningThreshold) {
         onMemoryWarning?.(memoryInfo)
@@ -58,56 +67,42 @@ export function useErrorHandler({
     }
 
     const handleRecoveryAttempt = (errorInfo: ErrorInfo) => {
+      console.log('🔍 Recovery attempt:', errorInfo)
       setIsRecovering(true)
       onRecoveryAttempt?.(errorInfo)
       
       // Reset recovery state after a delay
       setTimeout(() => {
+        console.log('🔍 Resetting recovery state')
         setIsRecovering(false)
-      }, 2000)
+      }, 3000)
     }
 
-    const handleGeometricRecovery = (errorInfo: ErrorInfo) => {
-      setIsRecovering(true)
-      onRecoveryAttempt?.(errorInfo)
-      
-      setTimeout(() => {
-        setIsRecovering(false)
-      }, 1000)
+    const handleRecoverySuccess = (errorInfo: ErrorInfo) => {
+      console.log('🔍 Recovery success:', errorInfo)
+      setIsRecovering(false)
     }
 
-    const handleRenderingRecovery = (errorInfo: ErrorInfo) => {
-      setIsRecovering(true)
-      onRecoveryAttempt?.(errorInfo)
-      
-      setTimeout(() => {
-        setIsRecovering(false)
-      }, 500)
+    const handleRecoveryFailure = (errorInfo: ErrorInfo) => {
+      console.log('🔍 Recovery failure:', errorInfo)
+      setIsRecovering(false)
     }
 
-    // Subscribe to error events
-    eventBus.on('error-occurred', handleErrorOccurred)
-    eventBus.on('memory-usage-update', handleMemoryUpdate)
-    eventBus.on('geometric-error-recovery', handleGeometricRecovery)
-    eventBus.on('clear-and-rerender', handleRenderingRecovery)
-
-    // Initial state
-    if (errorHandlerRef.current) {
-      setErrorLog(errorHandlerRef.current.getErrorLog())
-      setErrorStats(errorHandlerRef.current.getErrorStats())
-      setMemoryInfo(errorHandlerRef.current.getMemoryInfo())
-    }
+    eventBus.on('error:occurred', handleErrorOccurred)
+    eventBus.on('memory:update', handleMemoryUpdate)
+    eventBus.on('recovery:attempt', handleRecoveryAttempt)
+    eventBus.on('recovery:success', handleRecoverySuccess)
+    eventBus.on('recovery:failure', handleRecoveryFailure)
 
     return () => {
-      eventBus.off('error-occurred', handleErrorOccurred)
-      eventBus.off('memory-usage-update', handleMemoryUpdate)
-      eventBus.off('geometric-error-recovery', handleGeometricRecovery)
-      eventBus.off('clear-and-rerender', handleRenderingRecovery)
-      
-      errorHandlerRef.current?.destroy()
-      errorHandlerRef.current = null
+      console.log('🔍 useErrorHandler useEffect cleanup')
+      eventBus.off('error:occurred', handleErrorOccurred)
+      eventBus.off('memory:update', handleMemoryUpdate)
+      eventBus.off('recovery:attempt', handleRecoveryAttempt)
+      eventBus.off('recovery:success', handleRecoverySuccess)
+      eventBus.off('recovery:failure', handleRecoveryFailure)
     }
-  }, [onError, onMemoryWarning, onRecoveryAttempt, errorStats])
+  }, []) // Removed errorStats to prevent infinite loop
 
   const handleGeometricError = useCallback((error: Error, context?: any) => {
     errorHandlerRef.current?.handleGeometricError(error, context)

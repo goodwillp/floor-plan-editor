@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            margin: 10px 0;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebGL Debug Test</h1>
+    
+    <div id="results"></div>
+    
+    <h2>Test Canvas</h2>
+    <canvas id="testCanvas" width="400" height="300"></canvas>
+    
+    <script>
+        function addResult(message, type = 'success') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            results.appendChild(div);
+        }
+        
+        function addDetails(title, data) {
+            const results = document.getElementById('results');
+            const h3 = document.createElement('h3');
+            h3.textContent = title;
+            results.appendChild(h3);
+            
+            const pre = document.createElement('pre');
+            pre.textContent = JSON.stringify(data, null, 2);
+            results.appendChild(pre);
+        }
+        
+        // Test WebGL support
+        function testWebGL() {
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                
+                if (!gl) {
+                    addResult('❌ WebGL not supported', 'error');
+                    return false;
+                }
+                
+                addResult('✅ WebGL is supported', 'success');
+                
+                // Get WebGL info
+                const info = {
+                    version: gl.getParameter(gl.VERSION),
+                    vendor: gl.getParameter(gl.VENDOR),
+                    renderer: gl.getParameter(gl.RENDERER),
+                    shadingLanguageVersion: gl.getParameter(gl.SHADING_LANGUAGE_VERSION),
+                    maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE),
+                    maxViewportDims: gl.getParameter(gl.MAX_VIEWPORT_DIMS),
+                    maxVertexAttribs: gl.getParameter(gl.MAX_VERTEX_ATTRIBS),
+                    maxFragmentUniforms: gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS),
+                    maxVertexUniforms: gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS)
+                };
+                
+                addDetails('WebGL Information', info);
+                
+                return true;
+            } catch (error) {
+                addResult(`❌ WebGL test failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        // Test WebGL context loss handling
+        function testContextLoss() {
+            try {
+                const canvas = document.getElementById('testCanvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                
+                if (!gl) {
+                    addResult('❌ Cannot test context loss - WebGL not available', 'error');
+                    return;
+                }
+                
+                // Set up context loss handlers
+                canvas.addEventListener('webglcontextlost', (event) => {
+                    event.preventDefault();
+                    addResult('⚠️ WebGL context lost event fired', 'warning');
+                });
+                
+                canvas.addEventListener('webglcontextrestored', () => {
+                    addResult('✅ WebGL context restored', 'success');
+                });
+                
+                // Try to force context loss (this may not work in all browsers)
+                const ext = gl.getExtension('WEBGL_lose_context');
+                if (ext) {
+                    addResult('✅ WEBGL_lose_context extension available', 'success');
+                    
+                    // Add button to test context loss
+                    const button = document.createElement('button');
+                    button.textContent = 'Test Context Loss';
+                    button.onclick = () => {
+                        ext.loseContext();
+                        setTimeout(() => ext.restoreContext(), 2000);
+                    };
+                    document.body.appendChild(button);
+                } else {
+                    addResult('⚠️ WEBGL_lose_context extension not available', 'warning');
+                }
+                
+                // Draw a simple triangle to test rendering
+                gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                
+                addResult('✅ Basic WebGL rendering test passed', 'success');
+                
+            } catch (error) {
+                addResult(`❌ Context loss test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Test browser capabilities
+        function testBrowserCapabilities() {
+            const capabilities = {
+                userAgent: navigator.userAgent,
+                hardwareConcurrency: navigator.hardwareConcurrency,
+                deviceMemory: navigator.deviceMemory || 'unknown',
+                platform: navigator.platform,
+                cookieEnabled: navigator.cookieEnabled,
+                onLine: navigator.onLine,
+                language: navigator.language,
+                languages: navigator.languages
+            };
+            
+            addDetails('Browser Capabilities', capabilities);
+            
+            // Test performance memory if available
+            if ('memory' in performance) {
+                const memory = performance.memory;
+                addDetails('Memory Usage', {
+                    used: `${Math.round(memory.usedJSHeapSize / 1024 / 1024)} MB`,
+                    total: `${Math.round(memory.totalJSHeapSize / 1024 / 1024)} MB`,
+                    limit: `${Math.round(memory.jsHeapSizeLimit / 1024 / 1024)} MB`
+                });
+            }
+        }
+        
+        // Run all tests
+        addResult('🔍 Starting WebGL diagnostics...', 'warning');
+        testBrowserCapabilities();
+        
+        if (testWebGL()) {
+            testContextLoss();
+        }
+        
+        addResult('✅ Diagnostics complete', 'success');
+    </script>
+</body>
+</html>

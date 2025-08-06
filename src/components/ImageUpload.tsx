@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { 
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger
 } from '@/components/ui/tooltip'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -114,105 +113,91 @@ export function ImageUpload({
   }
 
   return (
-    <TooltipProvider>
-      <div className={cn('space-y-2', className)}>
-        {/* File Input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={accept}
-          onChange={handleFileInputChange}
-          className="hidden"
-          disabled={disabled || isLoading}
-        />
+    <div className={cn('space-y-2', className)}>
+      {/* File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={accept}
+        onChange={handleFileInputChange}
+        className="hidden"
+        disabled={disabled || isLoading}
+      />
 
-        {/* Upload Area */}
-        <div
-          className={cn(
-            'border-2 border-dashed rounded-lg p-4 transition-colors cursor-pointer',
-            'hover:border-primary/50 hover:bg-primary/5',
-            {
-              'border-primary bg-primary/10': dragOver,
-              'border-muted-foreground/25': !dragOver,
-              'opacity-50 cursor-not-allowed': disabled || isLoading,
-              'border-destructive bg-destructive/5': error
-            }
+      {/* Upload Area */}
+      <div
+        className={cn(
+          'border-2 border-dashed rounded-lg p-4 transition-colors cursor-pointer',
+          'hover:border-primary/50 hover:bg-primary/5',
+          {
+            'border-primary bg-primary/10': dragOver,
+            'border-muted-foreground/25': !dragOver,
+            'opacity-50 cursor-not-allowed': disabled || isLoading,
+            'border-destructive bg-destructive/5': error
+          }
+        )}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onClick={handleUploadClick}
+      >
+        <div className="flex flex-col items-center justify-center text-center space-y-2">
+          {isLoading ? (
+            <>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <p className="text-sm text-muted-foreground">Loading image...</p>
+            </>
+          ) : (
+            <>
+              <Upload className="h-8 w-8 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium">
+                  {dragOver ? 'Drop image here' : 'Click to upload or drag and drop'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  PNG, JPG, GIF, BMP, WEBP up to {maxSize}MB
+                </p>
+              </div>
+            </>
           )}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
           onClick={handleUploadClick}
+          disabled={disabled || isLoading}
+          className="flex-1"
+          title="Load a reference image for tracing"
         >
-          <div className="flex flex-col items-center justify-center text-center space-y-2">
-            {isLoading ? (
-              <>
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                <p className="text-sm text-muted-foreground">Loading image...</p>
-              </>
-            ) : (
-              <>
-                <Upload className="h-8 w-8 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">
-                    {dragOver ? 'Drop image here' : 'Click to upload or drag and drop'}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    PNG, JPG, GIF, BMP, WEBP up to {maxSize}MB
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+          <Image className="h-4 w-4 mr-2" />
+          {hasImage ? 'Replace Image' : 'Load Image'}
+        </Button>
 
-        {/* Action Buttons */}
-        <div className="flex gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleUploadClick}
-                disabled={disabled || isLoading}
-                className="flex-1"
-              >
-                <Image className="h-4 w-4 mr-2" />
-                {hasImage ? 'Replace Image' : 'Load Image'}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Load a reference image for tracing</p>
-            </TooltipContent>
-          </Tooltip>
-
-          {hasImage && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRemoveClick}
-                  disabled={disabled || isLoading}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Remove reference image</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-
-        {/* Error Display */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+        {hasImage && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRemoveClick}
+            disabled={disabled || isLoading}
+            title="Remove reference image"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         )}
       </div>
-    </TooltipProvider>
+
+      {/* Error Display */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+    </div>
   )
 }
 
@@ -258,39 +243,33 @@ export function CompactImageUpload({
   }
 
   return (
-    <TooltipProvider>
-      <div className={className}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/png,image/jpeg,image/jpg,image/gif,image/bmp,image/webp"
-          onChange={handleFileInputChange}
-          className="hidden"
-          disabled={disabled || isLoading}
-        />
+    <div className={className}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,image/gif,image/bmp,image/webp"
+        onChange={handleFileInputChange}
+        className="sr-only"
+        disabled={disabled || isLoading}
+        aria-label={hasImage ? 'Replace Reference Image File' : 'Load Reference Image File'}
+      />
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleClick}
-              disabled={disabled || isLoading}
-              className="h-8 w-8 p-0"
-            >
-              {isLoading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-              ) : (
-                <Image className={cn('h-4 w-4', { 'text-primary': hasImage })} />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{hasImage ? 'Replace Reference Image' : 'Load Reference Image'}</p>
-          </TooltipContent>
-        </Tooltip>
-      </div>
-    </TooltipProvider>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleClick}
+        disabled={disabled || isLoading}
+        className="h-8 w-8 p-0"
+        aria-label={hasImage ? 'Replace Reference Image Button' : 'Load Reference Image Button'}
+        title={hasImage ? 'Replace Reference Image' : 'Load Reference Image'}
+      >
+        {isLoading ? (
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+        ) : (
+          <Image className={cn('h-4 w-4', { 'text-primary': hasImage })} />
+        )}
+      </Button>
+    </div>
   )
 }
 

@@ -143,108 +143,70 @@ export function Sidebar({
       {/* Icon Bar */}
       <div className="flex flex-col w-12 border-r bg-muted/30">
         <div className="flex flex-col gap-1 p-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={activePanel === 'layers' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => togglePanel('layers')}
-                className="aspect-square"
-              >
-                <Layers className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>Layers</p>
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            variant={activePanel === 'layers' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => togglePanel('layers')}
+            className="aspect-square"
+            title="Layers"
+          >
+            <Layers className="h-4 w-4" />
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={activePanel === 'properties' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => togglePanel('properties')}
-                className="aspect-square"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>Properties</p>
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            variant={activePanel === 'properties' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => togglePanel('properties')}
+            className="aspect-square"
+            title="Properties"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={activePanel === 'reference' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => togglePanel('reference')}
-                className="aspect-square"
-              >
-                <Image className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>Reference Images</p>
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            variant={activePanel === 'reference' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => togglePanel('reference')}
+            className="aspect-square"
+            title="Reference Images"
+          >
+            <Image className="h-4 w-4" />
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={activePanel === 'proximity' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => togglePanel('proximity')}
-                className="aspect-square"
-              >
-                <Merge className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>Proximity Merging</p>
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            variant={activePanel === 'proximity' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => togglePanel('proximity')}
+            className="aspect-square"
+            title="Proximity Merging"
+          >
+            <Merge className="h-4 w-4" />
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={activePanel === 'error' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => togglePanel('error')}
-                className="aspect-square"
-              >
-                <Shield className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>Error Monitoring</p>
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            variant={activePanel === 'error' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => togglePanel('error')}
+            className="aspect-square"
+            title="Error Monitoring"
+          >
+            <Shield className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Collapse Toggle */}
         <div className="mt-auto p-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleCollapse}
-                className="aspect-square"
-              >
-                {isCollapsed ? (
-                  <ChevronLeft className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>{isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}</p>
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleCollapse}
+            className="aspect-square"
+            title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+          >
+            <ChevronLeft className={cn('h-4 w-4 transition-transform', {
+              'rotate-180': isCollapsed
+            })} />
+          </Button>
         </div>
       </div>
 

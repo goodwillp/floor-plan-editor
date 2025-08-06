@@ -1,6 +1,6 @@
-import { IconButton } from '@/components/ui/icon-button'
-import { ButtonGroup } from '@/components/ui/button-group'
+import { OptimizedIconButton, IconButtonGroup } from '@/components/ui/optimized-icon-button'
 import { iconMappings } from '@/lib/icon-mappings'
+import { useCallback } from 'react'
 
 interface MenuBarProps {
   onSave?: () => void
@@ -23,59 +23,111 @@ export function MenuBar({
   onZoomOut,
   onReset
 }: MenuBarProps) {
+  // Create stable handlers using useCallback with proper dependencies
+  const saveHandler = useCallback(() => {
+    onSave?.()
+  }, [onSave])
+  
+  const loadHandler = useCallback(() => {
+    onLoad?.()
+  }, [onLoad])
+  
+  const exportHandler = useCallback(() => {
+    onExport?.()
+  }, [onExport])
+  
+  const undoHandler = useCallback(() => {
+    onUndo?.()
+  }, [onUndo])
+  
+  const redoHandler = useCallback(() => {
+    onRedo?.()
+  }, [onRedo])
+  
+  const zoomInHandler = useCallback(() => {
+    onZoomIn?.()
+  }, [onZoomIn])
+  
+  const zoomOutHandler = useCallback(() => {
+    onZoomOut?.()
+  }, [onZoomOut])
+  
+  const resetHandler = useCallback(() => {
+    onReset?.()
+  }, [onReset])
   return (
-    <div className="flex items-center p-2 border-b bg-background">
+    <div className="flex items-center p-2 border-b bg-background" role="toolbar" aria-label="Main menu">
       {/* File Actions */}
-      <ButtonGroup separator>
-        <IconButton
+      <IconButtonGroup spacing="sm" aria-label="File operations">
+        <OptimizedIconButton
           icon={iconMappings.save.icon}
           tooltip={iconMappings.save.tooltip}
-          onClick={onSave}
+          onClick={saveHandler}
+          size="sm"
+          aria-label="Save floor plan (Ctrl+S)"
         />
-        <IconButton
+        <OptimizedIconButton
           icon={iconMappings.load.icon}
           tooltip={iconMappings.load.tooltip}
-          onClick={onLoad}
+          onClick={loadHandler}
+          size="sm"
+          aria-label="Load floor plan (Ctrl+O)"
         />
-        <IconButton
+        <OptimizedIconButton
           icon={iconMappings.export.icon}
           tooltip={iconMappings.export.tooltip}
-          onClick={onExport}
+          onClick={exportHandler}
+          size="sm"
+          aria-label="Export floor plan (Ctrl+E)"
         />
-      </ButtonGroup>
+      </IconButtonGroup>
+
+      <div className="mx-2 h-6 w-px bg-border" role="separator" />
 
       {/* Edit Actions */}
-      <ButtonGroup separator>
-        <IconButton
+      <IconButtonGroup spacing="sm" aria-label="Edit operations">
+        <OptimizedIconButton
           icon={iconMappings.undo.icon}
           tooltip={iconMappings.undo.tooltip}
-          onClick={onUndo}
+          onClick={undoHandler}
+          size="sm"
+          aria-label="Undo (Ctrl+Z)"
         />
-        <IconButton
+        <OptimizedIconButton
           icon={iconMappings.redo.icon}
           tooltip={iconMappings.redo.tooltip}
-          onClick={onRedo}
+          onClick={redoHandler}
+          size="sm"
+          aria-label="Redo (Ctrl+Y)"
         />
-      </ButtonGroup>
+      </IconButtonGroup>
+
+      <div className="mx-2 h-6 w-px bg-border" role="separator" />
 
       {/* View Actions */}
-      <ButtonGroup>
-        <IconButton
+      <IconButtonGroup spacing="sm" aria-label="View controls">
+        <OptimizedIconButton
           icon={iconMappings.zoomIn.icon}
           tooltip={iconMappings.zoomIn.tooltip}
-          onClick={onZoomIn}
+          onClick={zoomInHandler}
+          size="sm"
+          aria-label="Zoom in (Ctrl++)"
         />
-        <IconButton
+        <OptimizedIconButton
           icon={iconMappings.zoomOut.icon}
           tooltip={iconMappings.zoomOut.tooltip}
-          onClick={onZoomOut}
+          onClick={zoomOutHandler}
+          size="sm"
+          aria-label="Zoom out (Ctrl+-)"
         />
-        <IconButton
+        <OptimizedIconButton
           icon={iconMappings.zoomActual.icon}
           tooltip="Reset View"
-          onClick={onReset}
+          onClick={resetHandler}
+          size="sm"
+          aria-label="Reset view (Home)"
         />
-      </ButtonGroup>
+      </IconButtonGroup>
     </div>
   )
 }

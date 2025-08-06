@@ -59,6 +59,7 @@ export function useGrid({
 
   const gridServiceRef = useRef<GridService | null>(null)
   const rendererRef = useRef<GridRenderer | null>(null)
+  const prevCanvasSizeRef = useRef<{ width: number; height: number } | null>(null)
 
   // Initialize grid service
   useEffect(() => {
@@ -68,18 +69,21 @@ export function useGrid({
 
     // Set up event listeners
     const handleVisibilityChange = (data: { visible: boolean }) => {
+      console.log('🔍 Grid visibility changed:', data.visible)
       setIsVisible(data.visible)
-      updateGridStats()
+      // Removed updateGridStats() to prevent infinite loop
     }
 
     const handleConfigChange = (data: { newConfig: GridConfig }) => {
+      console.log('🔍 Grid config changed:', data.newConfig)
       setConfig(data.newConfig)
-      updateGridStats()
+      // Removed updateGridStats() to prevent infinite loop
     }
 
     const handleSnapChange = (data: { enabled: boolean }) => {
+      console.log('🔍 Grid snap changed:', data.enabled)
       setIsSnapEnabled(data.enabled)
-      updateGridStats()
+      // Removed updateGridStats() to prevent infinite loop
     }
 
     gridServiceRef.current.addEventListener('visibility-changed', handleVisibilityChange)
@@ -106,7 +110,7 @@ export function useGrid({
         gridServiceRef.current.setRenderer(rendererRef.current)
       }
 
-      updateGridStats()
+      // Removed updateGridStats() to prevent infinite loop
     }
 
     return () => {
@@ -119,14 +123,39 @@ export function useGrid({
 
   // Update canvas size when it changes
   useEffect(() => {
+    console.log('🔍 useGrid useEffect triggered', {
+      canvasSize,
+      hasGridService: !!gridServiceRef.current,
+      timestamp: Date.now()
+    })
+    
     if (canvasSize && gridServiceRef.current) {
-      gridServiceRef.current.setCanvasSize(canvasSize.width, canvasSize.height)
-      updateGridStats()
+      // Only update if the canvas size actually changed
+      const prevSize = prevCanvasSizeRef.current
+      const hasChanged = !prevSize || 
+        prevSize.width !== canvasSize.width || 
+        prevSize.height !== canvasSize.height
+      
+      if (hasChanged) {
+        console.log('🔍 Canvas size changed, updating grid service', {
+          from: prevSize,
+          to: canvasSize
+        })
+        gridServiceRef.current.setCanvasSize(canvasSize.width, canvasSize.height)
+        prevCanvasSizeRef.current = { width: canvasSize.width, height: canvasSize.height }
+      } else {
+        console.log('🔍 Canvas size unchanged, skipping update')
+      }
     }
-  }, [canvasSize])
+  }, [canvasSize?.width, canvasSize?.height]) // Use individual properties instead of the object
 
   // Update grid stats
   const updateGridStats = useCallback(() => {
+    console.log('🔍 updateGridStats called', {
+      hasGridService: !!gridServiceRef.current,
+      timestamp: Date.now()
+    })
+    
     if (gridServiceRef.current) {
       const stats = gridServiceRef.current.getGridStats()
       setGridStats(stats)
