@@ -75,10 +75,23 @@ export function CanvasContainer({
       // Create PixiJS application with proper configuration
       const app = new PIXI.Application()
       
+      // Validate canvas dimensions before initialization
+      const maxDimension = 4096 // WebGL texture size limit
+      const initWidth = Math.min(containerRef.current.clientWidth, maxDimension)
+      const initHeight = Math.min(containerRef.current.clientHeight, maxDimension)
+      
+      console.log('🔍 PixiJS initialization dimensions:', {
+        containerWidth: containerRef.current.clientWidth,
+        containerHeight: containerRef.current.clientHeight,
+        initWidth,
+        initHeight,
+        maxDimension
+      })
+      
       await app.init({
-        width: containerRef.current.clientWidth,
-        height: containerRef.current.clientHeight,
-        backgroundColor: 0xffffff,
+        width: initWidth,
+        height: initHeight,
+        backgroundColor: 0xf0f0f0, // Light gray background instead of white
         antialias: true,
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
@@ -92,6 +105,15 @@ export function CanvasContainer({
       // Store app reference
       appRef.current = app
       
+      // Debug: Log canvas background and renderer info
+      console.log('🔍 Canvas initialization debug:', {
+        backgroundColor: 0xf0f0f0,
+        canvasWidth: app.canvas.width,
+        canvasHeight: app.canvas.height,
+        rendererType: app.renderer.constructor.name,
+        clearBeforeRender: false
+      })
+
       // Update canvas size state
       if (containerRef.current) {
         setCanvasSize({
@@ -128,6 +150,18 @@ export function CanvasContainer({
 
       // Enable sorting by z-index
       app.stage.sortableChildren = true
+
+      // Add a background rectangle to ensure visibility
+      const backgroundRect = new PIXI.Graphics()
+      backgroundRect.fill({ color: 0xf0f0f0, alpha: 1 })
+      backgroundRect.rect(0, 0, app.screen.width, app.screen.height)
+      backgroundRect.zIndex = -1 // Below everything else
+      layers.background.addChild(backgroundRect)
+      console.log('🔍 Added background rectangle:', {
+        width: app.screen.width,
+        height: app.screen.height,
+        color: 0xf0f0f0
+      })
 
       // Store layers reference
       layersRef.current = layers
@@ -244,10 +278,33 @@ export function CanvasContainer({
     if (!appRef.current || !containerRef.current) return
 
     const { clientWidth, clientHeight } = containerRef.current
-    appRef.current.renderer.resize(clientWidth, clientHeight)
+    
+    // Debug: Log resize dimensions
+    console.log('🔍 Canvas resize debug:', {
+      clientWidth,
+      clientHeight,
+      canvasWidth: appRef.current.canvas.width,
+      canvasHeight: appRef.current.canvas.height,
+      screenWidth: appRef.current.screen.width,
+      screenHeight: appRef.current.screen.height
+    })
+    
+    // Clamp dimensions to reasonable limits to prevent WebGL errors
+    const maxDimension = 4096 // WebGL texture size limit
+    const clampedWidth = Math.min(clientWidth, maxDimension)
+    const clampedHeight = Math.min(clientHeight, maxDimension)
+    
+    if (clampedWidth !== clientWidth || clampedHeight !== clientHeight) {
+      console.warn('🔍 Canvas dimensions clamped:', {
+        original: { width: clientWidth, height: clientHeight },
+        clamped: { width: clampedWidth, height: clampedHeight }
+      })
+    }
+    
+    appRef.current.renderer.resize(clampedWidth, clampedHeight)
     
     // Update canvas size state for viewport
-    setCanvasSize({ width: clientWidth, height: clientHeight })
+    setCanvasSize({ width: clampedWidth, height: clampedHeight })
   }, [])
 
   // Set up resize observer for viewport management
