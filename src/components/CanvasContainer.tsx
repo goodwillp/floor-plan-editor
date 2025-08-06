@@ -153,14 +153,17 @@ export function CanvasContainer({
 
       // Add a background rectangle to ensure visibility
       const backgroundRect = new PIXI.Graphics()
-      backgroundRect.fill({ color: 0xf0f0f0, alpha: 1 })
+      backgroundRect.fill({ color: 0xe0e0e0, alpha: 1 }) // Lighter gray for better visibility
       backgroundRect.rect(0, 0, app.screen.width, app.screen.height)
       backgroundRect.zIndex = -1 // Below everything else
       layers.background.addChild(backgroundRect)
       console.log('🔍 Added background rectangle:', {
         width: app.screen.width,
         height: app.screen.height,
-        color: 0xf0f0f0
+        color: 0xe0e0e0,
+        zIndex: backgroundRect.zIndex,
+        visible: backgroundRect.visible,
+        alpha: backgroundRect.alpha
       })
 
       // Store layers reference
@@ -291,20 +294,33 @@ export function CanvasContainer({
     
     // Clamp dimensions to reasonable limits to prevent WebGL errors
     const maxDimension = 4096 // WebGL texture size limit
-    const clampedWidth = Math.min(clientWidth, maxDimension)
-    const clampedHeight = Math.min(clientHeight, maxDimension)
+    const minDimension = 100 // Minimum reasonable dimension
+    const clampedWidth = Math.max(minDimension, Math.min(clientWidth, maxDimension))
+    const clampedHeight = Math.max(minDimension, Math.min(clientHeight, maxDimension))
     
-    if (clampedWidth !== clientWidth || clampedHeight !== clientHeight) {
-      console.warn('🔍 Canvas dimensions clamped:', {
-        original: { width: clientWidth, height: clientHeight },
-        clamped: { width: clampedWidth, height: clampedHeight }
-      })
+    // Only resize if dimensions actually changed significantly
+    const currentWidth = appRef.current.screen.width
+    const currentHeight = appRef.current.screen.height
+    const widthChanged = Math.abs(clampedWidth - currentWidth) > 10
+    const heightChanged = Math.abs(clampedHeight - currentHeight) > 10
+    
+    if (widthChanged || heightChanged) {
+      if (clampedWidth !== clientWidth || clampedHeight !== clientHeight) {
+        console.warn('🔍 Canvas dimensions clamped:', {
+          original: { width: clientWidth, height: clientHeight },
+          clamped: { width: clampedWidth, height: clampedHeight }
+        })
+      }
+      
+      appRef.current.renderer.resize(clampedWidth, clampedHeight)
+      
+      // Update canvas size state for viewport
+      setCanvasSize({ width: clampedWidth, height: clampedHeight })
+      
+      console.log('🔍 Canvas resized to:', { width: clampedWidth, height: clampedHeight })
+    } else {
+      console.log('🔍 Canvas resize skipped - no significant change')
     }
-    
-    appRef.current.renderer.resize(clampedWidth, clampedHeight)
-    
-    // Update canvas size state for viewport
-    setCanvasSize({ width: clampedWidth, height: clampedHeight })
   }, [])
 
   // Set up resize observer for viewport management
