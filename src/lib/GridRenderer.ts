@@ -197,16 +197,20 @@ export class GridRenderer {
    * Render grid in screen coordinates (fixed to screen, doesn't scale with viewport)
    */
   private renderGridInScreenCoordinates(): void {
-    // Calculate grid bounds in screen coordinates - use very large bounds
-    // to ensure grid covers the entire visible area and beyond
+    // Calculate grid bounds in screen coordinates - center the origin at canvas center
     const padding = this.config.cellSize * 100 // Very large padding
-    const startX = -padding
-    const endX = this.canvasWidth + padding
-    const startY = -padding
-    const endY = this.canvasHeight + padding
+    const centerX = this.canvasWidth / 2
+    const centerY = this.canvasHeight / 2
+    
+    // Center the grid around the canvas center
+    const startX = centerX - padding
+    const endX = centerX + padding
+    const startY = centerY - padding
+    const endY = centerY + padding
 
     console.log('🎨 Grid bounds calculation (screen coordinates):', {
       canvasSize: { width: this.canvasWidth, height: this.canvasHeight },
+      center: { x: centerX, y: centerY },
       bounds: { startX, endX, startY, endY },
       padding,
       cellSize: this.config.cellSize
@@ -256,9 +260,9 @@ export class GridRenderer {
       this.config.majorWidth
     )
 
-    // Render origin axes if enabled
+    // Render origin axes if enabled - pass the center coordinates
     if (this.config.showOrigin) {
-      this.renderOriginAxes(startX, endX, startY, endY)
+      this.renderOriginAxes(startX, endX, startY, endY, centerX, centerY)
     }
   }
 
@@ -414,8 +418,10 @@ export class GridRenderer {
    * @param maxX Maximum X coordinate
    * @param minY Minimum Y coordinate
    * @param maxY Maximum Y coordinate
+   * @param centerX Center X coordinate (optional)
+   * @param centerY Center Y coordinate (optional)
    */
-  private renderOriginAxes(minX: number, maxX: number, minY: number, maxY: number): void {
+  private renderOriginAxes(minX: number, maxX: number, minY: number, maxY: number, centerX?: number, centerY?: number): void {
     // Set stroke style for origin axes
     this.gridGraphics.setStrokeStyle({ 
       width: this.config.originWidth, 
@@ -423,16 +429,20 @@ export class GridRenderer {
       alpha: this.config.originAlpha 
     })
 
-    // X-axis (horizontal line at Y=0)
-    if (minY <= 0 && maxY >= 0) {
-      this.gridGraphics.moveTo(minX, 0)
-      this.gridGraphics.lineTo(maxX, 0)
+    // Use center coordinates if provided, otherwise use (0,0)
+    const originX = centerX || 0
+    const originY = centerY || 0
+
+    // X-axis (horizontal line at origin Y)
+    if (minY <= originY && maxY >= originY) {
+      this.gridGraphics.moveTo(minX, originY)
+      this.gridGraphics.lineTo(maxX, originY)
     }
 
-    // Y-axis (vertical line at X=0)
-    if (minX <= 0 && maxX >= 0) {
-      this.gridGraphics.moveTo(0, minY)
-      this.gridGraphics.lineTo(0, maxY)
+    // Y-axis (vertical line at origin X)
+    if (minX <= originX && maxX >= originX) {
+      this.gridGraphics.moveTo(originX, minY)
+      this.gridGraphics.lineTo(originX, maxY)
     }
 
     // Apply the stroke to make origin axes visible

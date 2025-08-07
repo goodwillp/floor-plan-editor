@@ -254,62 +254,6 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           })
         })
         
-        // TEST 1: Add a simple test object to verify rendering is working
-        const testGraphics = new PIXI.Graphics()
-        testGraphics.beginFill(0x00ff00, 0.8) // Green with high alpha
-        testGraphics.drawRect(50, 50, 100, 100) // Make it larger
-        testGraphics.endFill()
-        testGraphics.zIndex = 100 // High z-index to be on top
-        pixiApp.stage.addChild(testGraphics) // Add directly to stage
-        console.log('🔍 Added test green square at (50,50) 100x100 to stage')
-        
-        // Force a render to ensure visibility
-        pixiApp.renderer.render(pixiApp.stage)
-        console.log('🔍 Forced render after adding green square')
-        
-        // TEST 2: Add a test object that bypasses viewport transformation
-        // Create a container that's not affected by stage transformation
-        const screenTestContainer = new PIXI.Container()
-        screenTestContainer.zIndex = 200 // Even higher z-index
-        
-        // Add this container directly to the stage
-        if (pixiApp.renderer) {
-          // Create a test graphics in screen coordinates
-          const screenTestGraphics = new PIXI.Graphics()
-          screenTestGraphics.beginFill(0xff0000, 1)
-          screenTestGraphics.drawRect(200, 200, 150, 150) // Make it larger and move it
-          screenTestGraphics.endFill()
-          screenTestContainer.addChild(screenTestGraphics)
-          
-          // Add to stage
-          pixiApp.stage.addChild(screenTestContainer)
-          console.log('🔍 Added screen test red square at (200,200) 150x150 to stage')
-          
-          // Force another render
-          pixiApp.renderer.render(pixiApp.stage)
-          console.log('🔍 Forced render after adding red square')
-        }
-        
-        // TEST 3: Add a test square that's positioned relative to the screen, not the world
-        const screenFixedGraphics = new PIXI.Graphics()
-        screenFixedGraphics.beginFill(0x0000ff, 1) // Blue
-        screenFixedGraphics.drawRect(10, 10, 80, 80) // Small blue square in top-left
-        screenFixedGraphics.endFill()
-        screenFixedGraphics.zIndex = 300 // Highest z-index
-        
-        // Position this relative to the screen, not the world
-        screenFixedGraphics.position.set(10, 10)
-        
-        // Add directly to stage
-        pixiApp.stage.addChild(screenFixedGraphics)
-        console.log('🔍 Added screen-fixed blue square at (10,10) 80x80')
-        
-        // Force render
-        pixiApp.renderer.render(pixiApp.stage)
-        console.log('🔍 Forced render after adding blue square')
-        
-        // TEST 3: Removed HTML5 Canvas test as it conflicts with WebGL renderer
-        
         // DEBUG: Check if viewport is affecting visibility
         console.log('🔍 Viewport Debug:', {
           stageScale: { x: pixiApp.stage.scale.x, y: pixiApp.stage.scale.y },

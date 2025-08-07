@@ -151,26 +151,6 @@ export function CanvasContainer({
       // Enable sorting by z-index
       app.stage.sortableChildren = true
 
-      // Add a simple test square directly to stage using PixiJS v8 API
-      const testSquare = new PIXI.Graphics()
-      testSquare.beginFill(0xff0000, 1) // Bright red with full alpha
-      testSquare.drawRect(100, 100, 200, 200) // Large square
-      testSquare.endFill()
-      
-      // Add directly to stage (not to any layer)
-      app.stage.addChild(testSquare)
-      
-      // Force a render
-      app.renderer.render(app.stage)
-      
-      console.log('🔍 Added test red square directly to stage:', {
-        width: 200,
-        height: 200,
-        color: 0xff0000,
-        position: { x: 100, y: 100 },
-        parent: testSquare.parent?.constructor.name
-      })
-
       // Store layers reference
       layersRef.current = layers
 
@@ -223,20 +203,6 @@ export function CanvasContainer({
         canvasWidth: canvas.style.width,
         canvasHeight: canvas.style.height
       })
-      
-      // Test basic canvas rendering
-      try {
-        const ctx = canvas.getContext('2d')
-        if (ctx) {
-          ctx.fillStyle = '#ff0000'
-          ctx.fillRect(10, 10, 50, 50)
-          console.log('🔍 Basic canvas test: Drew red square at (10,10)')
-        } else {
-          console.error('🔍 Basic canvas test: Could not get 2D context')
-        }
-      } catch (error) {
-        console.error('🔍 Basic canvas test failed:', error)
-      }
       
       // Set up basic canvas event handling
       setupEventHandlers(app)
