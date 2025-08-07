@@ -71,6 +71,15 @@ export class GridRenderer {
     // Add to container but start hidden
     this.container.addChild(this.gridGraphics)
     this.gridGraphics.visible = false
+    
+    // Debug: Log container info
+    console.log('🔍 GridRenderer constructor:', {
+      containerType: container.constructor.name,
+      containerChildren: container.children.length,
+      containerVisible: container.visible,
+      containerAlpha: container.alpha,
+      containerZIndex: container.zIndex
+    })
   }
 
   /**
@@ -180,31 +189,23 @@ export class GridRenderer {
       return
     }
 
-    // TEST: Add a simple red rectangle to verify rendering is working
-    // Use new PixiJS v8 API - render in screen coordinates
-    this.gridGraphics.beginFill(0xff0000, 0.8)
-    this.gridGraphics.drawRect(0, 0, 100, 100)
-    this.gridGraphics.endFill()
-    console.log('🎨 Added test red rectangle at (0,0) 100x100')
-
-    // Render grid in screen coordinates (not world coordinates)
-    // This ensures the grid is always visible regardless of viewport transformation
+    // Render grid in screen coordinates with large bounds to prevent clipping
     this.renderGridInScreenCoordinates()
   }
 
   /**
-   * Render grid in screen coordinates
+   * Render grid in screen coordinates (fixed to screen, doesn't scale with viewport)
    */
   private renderGridInScreenCoordinates(): void {
-    // Calculate grid bounds in screen coordinates - fill entire canvas
-    // Calculate grid bounds with minimal padding to prevent clipping
-    const padding = this.config.cellSize // Reduced padding to prevent clipping
+    // Calculate grid bounds in screen coordinates - use very large bounds
+    // to ensure grid covers the entire visible area and beyond
+    const padding = this.config.cellSize * 100 // Very large padding
     const startX = -padding
     const endX = this.canvasWidth + padding
     const startY = -padding
     const endY = this.canvasHeight + padding
 
-    console.log('🎨 Grid bounds calculation:', {
+    console.log('🎨 Grid bounds calculation (screen coordinates):', {
       canvasSize: { width: this.canvasWidth, height: this.canvasHeight },
       bounds: { startX, endX, startY, endY },
       padding,
@@ -218,7 +219,76 @@ export class GridRenderer {
     const majorLinesX = minorLinesX.filter((_, index) => index % this.config.majorInterval === 0)
     const majorLinesY = minorLinesY.filter((_, index) => index % this.config.majorInterval === 0)
 
-    console.log('🎨 Grid lines calculated:', {
+    console.log('🎨 Grid lines calculated (screen coordinates):', {
+      minorLinesX: minorLinesX.length,
+      minorLinesY: minorLinesY.length,
+      majorLinesX: majorLinesX.length,
+      majorLinesY: majorLinesY.length,
+      firstMinorX: minorLinesX[0],
+      lastMinorX: minorLinesX[minorLinesX.length - 1],
+      firstMinorY: minorLinesY[0],
+      lastMinorY: minorLinesY[minorLinesY.length - 1]
+    })
+
+    // Render minor grid lines
+    this.renderGridLines(
+      minorLinesX, 
+      minorLinesY, 
+      startY, 
+      endY, 
+      startX, 
+      endX,
+      this.config.minorColor,
+      this.config.minorAlpha,
+      this.config.minorWidth
+    )
+
+    // Render major grid lines
+    this.renderGridLines(
+      majorLinesX, 
+      majorLinesY, 
+      startY, 
+      endY, 
+      startX, 
+      endX,
+      this.config.majorColor,
+      this.config.majorAlpha,
+      this.config.majorWidth
+    )
+
+    // Render origin axes if enabled
+    if (this.config.showOrigin) {
+      this.renderOriginAxes(startX, endX, startY, endY)
+    }
+  }
+
+  /**
+   * Render grid in world coordinates (scales with viewport)
+   */
+  private renderGridInWorldCoordinates(): void {
+    // Calculate grid bounds to cover the entire visible area plus extra padding
+    // Use a much larger area to ensure grid is visible when zoomed out
+    const padding = this.config.cellSize * 50 // Much larger padding
+    const startX = -padding
+    const endX = this.canvasWidth + padding
+    const startY = -padding
+    const endY = this.canvasHeight + padding
+
+    console.log('🎨 Grid bounds calculation (world coordinates):', {
+      canvasSize: { width: this.canvasWidth, height: this.canvasHeight },
+      bounds: { startX, endX, startY, endY },
+      padding,
+      cellSize: this.config.cellSize
+    })
+
+    // Calculate grid line positions in world coordinates
+    const minorLinesX = this.calculateGridLines(startX, endX, this.config.cellSize)
+    const minorLinesY = this.calculateGridLines(startY, endY, this.config.cellSize)
+    
+    const majorLinesX = minorLinesX.filter((_, index) => index % this.config.majorInterval === 0)
+    const majorLinesY = minorLinesY.filter((_, index) => index % this.config.majorInterval === 0)
+
+    console.log('🎨 Grid lines calculated (world coordinates):', {
       minorLinesX: minorLinesX.length,
       minorLinesY: minorLinesY.length,
       majorLinesX: majorLinesX.length,
