@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lock/Unlock Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Lock/Unlock Functionality Test</h1>
+        
+        <div class="test-section">
+            <h3>Test Instructions</h3>
+            <ol>
+                <li>Open the main application at <a href="http://localhost:5173" target="_blank">http://localhost:5173</a></li>
+                <li>Load a reference image using the image upload button in the toolbar</li>
+                <li>Try to click and drag the image - it should be locked by default (no movement)</li>
+                <li>Click the lock/unlock button (padlock icon) in the toolbar</li>
+                <li>Try to click and drag the image again - it should now be movable</li>
+                <li>Click the lock button again to lock it</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h3>Expected Behavior</h3>
+            <ul>
+                <li><strong>Locked State:</strong> Image cannot be moved by clicking and dragging</li>
+                <li><strong>Unlocked State:</strong> Image can be moved by clicking and dragging</li>
+                <li><strong>Button State:</strong> Lock button should show locked icon when locked, unlocked icon when unlocked</li>
+                <li><strong>Status Messages:</strong> Should show "Reference image locked" or "Reference image unlocked" in status bar</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>Test Results</h3>
+            <div id="test-results">
+                <div class="status info">Click the buttons below to mark test results</div>
+            </div>
+            <button class="test-button" onclick="markTestResult('pass', 'Lock/Unlock button works correctly')">✅ Test Passed</button>
+            <button class="test-button" onclick="markTestResult('fail', 'Lock/Unlock button does not work')">❌ Test Failed</button>
+            <button class="test-button" onclick="clearResults()">Clear Results</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Debug Information</h3>
+            <div id="debug-info">
+                <p><strong>Server Status:</strong> <span id="server-status">Checking...</span></p>
+                <p><strong>Application URL:</strong> <a href="http://localhost:5173" target="_blank">http://localhost:5173</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function markTestResult(result, message) {
+            const resultsDiv = document.getElementById('test-results');
+            const statusClass = result === 'pass' ? 'success' : 'error';
+            const icon = result === 'pass' ? '✅' : '❌';
+            
+            resultsDiv.innerHTML = `
+                <div class="status ${statusClass}">
+                    <strong>${icon} ${result.toUpperCase()}</strong><br>
+                    ${message}<br>
+                    <small>Test completed at ${new Date().toLocaleTimeString()}</small>
+                </div>
+            `;
+        }
+
+        function clearResults() {
+            document.getElementById('test-results').innerHTML = 
+                '<div class="status info">Click the buttons above to mark test results</div>';
+        }
+
+        // Check if server is running
+        async function checkServer() {
+            try {
+                const response = await fetch('http://localhost:5173', { 
+                    method: 'HEAD',
+                    mode: 'no-cors'
+                });
+                document.getElementById('server-status').textContent = 'Running ✅';
+                document.getElementById('server-status').style.color = 'green';
+            } catch (error) {
+                document.getElementById('server-status').textContent = 'Not running ❌';
+                document.getElementById('server-status').style.color = 'red';
+            }
+        }
+
+        // Check server status on page load
+        checkServer();
+    </script>
+</body>
+</html>

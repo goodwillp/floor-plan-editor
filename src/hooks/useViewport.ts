@@ -211,16 +211,21 @@ export function useViewport({
   // Mouse drag pan handlers
   // Requirements: 12.2
   const handleMouseDown = useCallback((event: MouseEvent) => {
-    if (event.button !== 1 && event.button !== 0) return // Only left and middle mouse buttons
-    
+    // Only start viewport panning with:
+    // - Middle mouse button, OR
+    // - Left mouse button while holding a modifier (Ctrl/Meta/Alt/Shift)
+    const isMiddleButton = event.button === 1
+    const isPanWithModifier = event.button === 0 && (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey)
+    if (!isMiddleButton && !isPanWithModifier) return
+
     isDragging.current = true
     lastMousePos.current = { x: event.clientX, y: event.clientY }
     dragStartPos.current = { x: event.clientX, y: event.clientY }
-    
+
     // Change cursor to grabbing
     const target = event.target as HTMLElement
     target.style.cursor = 'grabbing'
-    
+
     event.preventDefault()
   }, [])
 

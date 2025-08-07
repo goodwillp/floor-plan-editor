@@ -176,6 +176,14 @@ export function CanvasContainer({
         canvas.style.width = '100%'
         canvas.style.height = '100%'
         canvas.style.zIndex = '1'
+        // Prevent native browser drag & selection behaviors on the canvas
+        canvas.style.userSelect = 'none'
+        ;(canvas.style as any).webkitUserDrag = 'none'
+        canvas.setAttribute('draggable', 'false')
+        canvas.addEventListener('dragstart', (e) => e.preventDefault())
+        canvas.addEventListener('dragover', (e) => e.preventDefault())
+        canvas.addEventListener('drop', (e) => e.preventDefault())
+        canvas.addEventListener('selectstart', (e) => e.preventDefault())
         
         containerRef.current.appendChild(canvas)
         console.log('🔍 Canvas added to DOM:', {
@@ -246,6 +254,8 @@ export function CanvasContainer({
 
     // Click events for drawing
     app.stage.on('pointerdown', (event: PIXI.FederatedPointerEvent) => {
+      // Prevent native drag of the canvas itself
+      event.preventDefault()
       const point: Point = {
         x: Math.round(event.global.x),
         y: Math.round(event.global.y)
@@ -342,11 +352,11 @@ export function CanvasContainer({
     
     resizeObserver.observe(containerRef.current)
     
+    console.log('🔍 ResizeObserver enabled for dynamic canvas resizing')
+    
     return () => {
       resizeObserver.disconnect()
     }
-    
-    console.log('🔍 ResizeObserver enabled for dynamic canvas resizing')
   }, [handleResize])
 
   // Initialize PixiJS when component mounts

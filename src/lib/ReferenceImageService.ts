@@ -82,6 +82,8 @@ export class ReferenceImageService {
   private imageTexture: PIXI.Texture | null = null
   private imageSprite: PIXI.Sprite | null = null
   private container: PIXI.Container | null = null
+  private overlayContainer: PIXI.Container | null = null
+  private selectionOverlay: PIXI.Graphics | null = null
   private imageInfo: ReferenceImageState['imageInfo'] = null
   private eventListeners: Map<ReferenceImageEvent, Set<(data: ReferenceImageEventData) => void>> = new Map()
   private isDragging = false
@@ -112,11 +114,35 @@ export class ReferenceImageService {
    */
   setContainer(container: PIXI.Container): void {
     this.container = container
+    if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+      console.log('🧩 setContainer(reference)', { hasImage: !!this.imageSprite, childCount: container.children?.length })
+    }
     
     // If we have an image, add it to the new container
     if (this.imageSprite && this.container) {
       this.container.addChild(this.imageSprite)
       this.applyConfiguration()
+      if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+        console.log('🧩 image added to reference container', { x: this.imageSprite.x, y: this.imageSprite.y })
+      }
+    }
+  }
+
+  /**
+   * Optional: set a separate overlay container (e.g., selection layer) so the outline
+   * appears above grid/walls. Falls back to reference container if not provided.
+   */
+  setOverlayContainer(container: PIXI.Container): void {
+    this.overlayContainer = container
+    // Re-create overlay in the new container if it already exists
+    if (this.selectionOverlay) {
+      if (this.selectionOverlay.parent) {
+        this.selectionOverlay.parent.removeChild(this.selectionOverlay)
+      }
+      this.overlayContainer.addChild(this.selectionOverlay)
+    }
+    if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+      console.log('🧩 setOverlayContainer(selection)', { hasOverlay: !!this.selectionOverlay, childCount: container.children?.length })
     }
   }
 
@@ -160,11 +186,18 @@ export class ReferenceImageService {
       // Add to container if available
       if (this.container) {
         this.container.addChild(this.imageSprite)
+        if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+          console.log('🖼️ image sprite created & added', { size: this.imageInfo?.dimensions, containerChildren: this.container.children?.length })
+        }
       }
       
       // Apply configuration and set up interaction
       this.applyConfiguration()
       this.setupInteraction()
+      this.ensureSelectionOverlay()
+      if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+        console.log('🖼️ after setup', { locked: this.config.locked })
+      }
       
       // Reset to default locked state (Requirement 13.3)
       this.config.locked = true
@@ -216,6 +249,7 @@ export class ReferenceImageService {
       // Apply configuration and set up interaction
       this.applyConfiguration()
       this.setupInteraction()
+      this.ensureSelectionOverlay()
       
       // Reset to default locked state (Requirement 13.3)
       this.config.locked = true
@@ -256,6 +290,15 @@ export class ReferenceImageService {
     // Reset configuration to defaults
     this.config = { ...DEFAULT_IMAGE_CONFIG }
     
+    // Remove selection overlay
+    if (this.selectionOverlay) {
+      if (this.container && this.selectionOverlay.parent === this.container) {
+        this.container.removeChild(this.selectionOverlay)
+      }
+      this.selectionOverlay.destroy()
+      this.selectionOverlay = null
+    }
+    
     // Emit event
     this.emitEvent('image-removed', this.getEventData())
   }
@@ -282,6 +325,14 @@ export class ReferenceImageService {
     this.config = { ...this.config, ...newConfig }
     
     this.applyConfiguration()
+    // Update interaction-related props when lock state changes
+    if (this.imageSprite && newConfig.locked !== undefined) {
+      this.imageSprite.cursor = this.config.locked ? 'default' : 'move'
+    }
+    // Update overlay visibility on config changes
+    if (this.selectionOverlay) {
+      this.selectionOverlay.visible = this.isDragging
+    }
     
     // Emit specific events for certain changes
     if (previousConfig.locked !== this.config.locked) {
@@ -460,6 +511,45 @@ export class ReferenceImageService {
     }
   }
 
+  /** Ensure selection overlay exists and is attached above the image */
+  private ensureSelectionOverlay(): void {
+    if (!this.container && !this.overlayContainer) return
+    if (!this.selectionOverlay) {
+      this.selectionOverlay = new PIXI.Graphics()
+      // Draw above grid by default; parent container ordering decides cross-layer
+      this.selectionOverlay.zIndex = 1000
+      this.selectionOverlay.visible = false
+      const parent = this.overlayContainer ?? this.container!
+      parent.addChild(this.selectionOverlay)
+      if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+        console.log('📐 selection overlay created', { parentIsOverlay: !!this.overlayContainer })
+      }
+    }
+    this.updateSelectionOverlay()
+  }
+
+  /** Update selection overlay geometry to match current image bounds */
+  private updateSelectionOverlay(): void {
+    if (!this.selectionOverlay) return
+    const b = this.getImageBounds()
+    this.selectionOverlay.clear()
+    if (b) {
+      this.selectionOverlay.alpha = 1
+      const g: any = this.selectionOverlay as any
+      if (typeof g.rect === 'function' && typeof g.stroke === 'function') {
+        g.rect(b.x, b.y, b.width, b.height)
+        g.stroke({ width: 2, color: 0x4f46e5, alpha: 0.95 })
+      } else {
+        // Fallback for older API if needed
+        this.selectionOverlay.lineStyle(2, 0x4f46e5, 0.95)
+        this.selectionOverlay.drawRect(b.x, b.y, b.width, b.height)
+      }
+      if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+        console.log('📐 selection overlay updated', b)
+      }
+    }
+  }
+
   /**
    * Handle mouse down for dragging
    * Requirements: 13.5
@@ -470,6 +560,10 @@ export class ReferenceImageService {
     const bounds = this.getImageBounds()
     if (!bounds) return false
     
+    if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+      console.log('🖼️ ReferenceImage mousedown', { event, bounds })
+    }
+
     // Check if click is within image bounds
     if (event.x >= bounds.x && event.x <= bounds.x + bounds.width &&
         event.y >= bounds.y && event.y <= bounds.y + bounds.height) {
@@ -477,6 +571,15 @@ export class ReferenceImageService {
       this.isDragging = true
       this.dragStartPos = { x: event.x, y: event.y }
       this.dragStartImagePos = { x: this.config.x, y: this.config.y }
+      // Debug: log drag start for troubleshooting
+      if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+        console.log('🖼️ ReferenceImage drag start', { event, bounds, config: this.config })
+      }
+      // Show selection overlay
+      if (this.selectionOverlay) {
+        this.selectionOverlay.visible = true
+        this.updateSelectionOverlay()
+      }
       return true
     }
     
@@ -497,6 +600,12 @@ export class ReferenceImageService {
       this.dragStartImagePos.x + deltaX,
       this.dragStartImagePos.y + deltaY
     )
+    // Debug: log drag move for troubleshooting
+    if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+      console.log('🖼️ ReferenceImage dragging', { event, newPos: { x: this.config.x, y: this.config.y } })
+    }
+    // Update overlay as it moves
+    this.updateSelectionOverlay()
     
     return true
   }
@@ -508,6 +617,12 @@ export class ReferenceImageService {
     if (!this.isDragging) return false
     
     this.isDragging = false
+    if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+      console.log('🖼️ ReferenceImage drag end', { config: this.config })
+    }
+    if (this.selectionOverlay) {
+      this.selectionOverlay.visible = false
+    }
     return true
   }
 
@@ -524,8 +639,13 @@ export class ReferenceImageService {
     this.imageSprite.rotation = this.config.rotation
     this.imageSprite.visible = this.config.visible
     
-    // Set z-index to ensure it's at the bottom (Requirement 13.1)
-    this.imageSprite.zIndex = -1000
+    // Keep sprite at base order within reference layer; the layer itself is below others
+    this.imageSprite.zIndex = 0
+    // Keep overlay in sync
+    this.updateSelectionOverlay()
+    if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+      console.log('⚙️ applyConfiguration', { config: this.config })
+    }
   }
 
   /**
@@ -534,8 +654,57 @@ export class ReferenceImageService {
   private setupInteraction(): void {
     if (!this.imageSprite) return
     
-    this.imageSprite.eventMode = 'static'
+    // Dynamic so interactive bounds update as the sprite moves
+    this.imageSprite.eventMode = 'dynamic'
     this.imageSprite.cursor = this.config.locked ? 'default' : 'move'
+    // Attach sprite-level pointer handlers for reliable dragging
+    const sprite = this.imageSprite
+    const onPointerDown = (e: PIXI.FederatedPointerEvent) => {
+      if (this.config.locked) return
+      if (e.button !== 0) return
+      const gx = Math.round(e.globalX ?? e.global.x)
+      const gy = Math.round(e.globalY ?? e.global.y)
+      const bounds = this.getImageBounds()
+      if (!bounds) return
+      // Loosen hit test to tolerant small coordinate drift at edges
+      const margin = 2
+      if (gx < bounds.x - margin || gx > bounds.x + bounds.width + margin || gy < bounds.y - margin || gy > bounds.y + bounds.height + margin) return
+      this.isDragging = true
+      this.dragStartPos = { x: gx, y: gy }
+      this.dragStartImagePos = { x: this.config.x, y: this.config.y }
+      if (this.selectionOverlay) {
+        this.selectionOverlay.visible = true
+        this.updateSelectionOverlay()
+      }
+      e.stopPropagation()
+      if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+        console.log('🖱️ sprite pointerdown', { gx, gy })
+      }
+    }
+    // Use global events so dragging continues even when the cursor leaves the sprite
+    const onPointerMove = (e: PIXI.FederatedPointerEvent) => {
+      if (!this.isDragging || this.config.locked) return
+      const gx = Math.round(e.globalX ?? e.global.x)
+      const gy = Math.round(e.globalY ?? e.global.y)
+      const deltaX = gx - this.dragStartPos.x
+      const deltaY = gy - this.dragStartPos.y
+      this.setPosition(this.dragStartImagePos.x + deltaX, this.dragStartImagePos.y + deltaY)
+      this.updateSelectionOverlay()
+      e.stopPropagation()
+    }
+    const onPointerUp = (e: PIXI.FederatedPointerEvent) => {
+      if (!this.isDragging) return
+      this.isDragging = false
+      if (this.selectionOverlay) this.selectionOverlay.visible = false
+      e.stopPropagation()
+      if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+        console.log('🖱️ sprite pointerup', { x: e.globalX ?? e.global.x, y: e.globalY ?? e.global.y, finalPos: { x: this.config.x, y: this.config.y } })
+      }
+    }
+    sprite.on('pointerdown', onPointerDown)
+    sprite.on('globalpointermove', onPointerMove)
+    sprite.on('globalpointerup', onPointerUp)
+    sprite.on('pointerupoutside', onPointerUp)
   }
 
   /**

@@ -188,7 +188,11 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     toggleReferenceImageLock: () => {
       if (referenceImage.toggleLock) {
         const isLocked = referenceImage.toggleLock()
-        onReferenceImageUpdate?.({ hasImage: true, isLocked, isVisible: true })
+        onReferenceImageUpdate?.({ 
+          hasImage: referenceImage.hasImage, 
+          isLocked, 
+          isVisible: referenceImage.isVisible 
+        })
         return isLocked
       }
       return true
@@ -196,12 +200,49 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     toggleReferenceImageVisibility: () => {
       if (referenceImage.toggleVisibility) {
         const isVisible = referenceImage.toggleVisibility()
-        onReferenceImageUpdate?.({ hasImage: true, isLocked: true, isVisible })
+        onReferenceImageUpdate?.({ 
+          hasImage: referenceImage.hasImage, 
+          isLocked: referenceImage.isLocked, 
+          isVisible 
+        })
         return isVisible
       }
       return true
     }
   }), [referenceImage, onReferenceImageUpdate])
+
+  // Update parent component when reference image state changes
+  useEffect(() => {
+    if (onReferenceImageUpdate) {
+      onReferenceImageUpdate({
+        hasImage: referenceImage.hasImage,
+        isLocked: referenceImage.isLocked,
+        isVisible: referenceImage.isVisible
+      })
+    }
+  }, [referenceImage.hasImage, referenceImage.isLocked, referenceImage.isVisible, onReferenceImageUpdate])
+
+  // Handle global mouse up for reference image
+  const handleGlobalMouseUp = useCallback(() => {
+    if (referenceImage.hasImage && !referenceImage.isLocked) {
+      const handled = referenceImage.handleMouseUp()
+      if (handled) {
+        onStatusMessage?.('Reference image drag ended')
+      }
+    }
+  }, [referenceImage, onStatusMessage])
+
+  // Add global mouse up listener for reference image dragging
+  useEffect(() => {
+    const handleMouseUp = () => {
+      handleGlobalMouseUp()
+    }
+
+    document.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [handleGlobalMouseUp])
 
   // Initialize wall renderer when canvas is ready
   const handleCanvasReady = useCallback((canvasLayers: CanvasLayers, pixiApp: PIXI.Application, viewportAPI: CanvasViewportAPI) => {
@@ -305,9 +346,30 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   // Handle canvas clicks based on active tool
   const handleCanvasClick = useCallback((point: Point) => {
     try {
+      // Coordinates coming from CanvasContainer's stage pointer events are already in world space
+      const worldPoint = point
+      if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+        console.log('🎯 Canvas click', { worldPoint, hasImage: referenceImage.hasImage, isLocked: referenceImage.isLocked })
+      }
+      // First, try to handle reference image interaction
+      if (referenceImage.hasImage && !referenceImage.isLocked) {
+        const handled = referenceImage.handleMouseDown({ 
+          x: worldPoint.x, 
+          y: worldPoint.y, 
+          button: 0 
+        })
+        if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+          console.log('🖼️ referenceImage.handleMouseDown result:', handled)
+        }
+        if (handled) {
+          onStatusMessage?.('Reference image interaction started')
+          return
+        }
+      }
+
       if (activeTool === 'draw') {
         // Apply grid snapping if grid is visible
-        const snappedPoint = gridIsVisible ? snapPoint(point) : point
+        const snappedPoint = gridIsVisible ? snapPoint(worldPoint) : worldPoint
         
         if (!isDrawing) {
           // Start new drawing
@@ -320,7 +382,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           onStatusMessage?.(`Drawing length: ${Math.round(length)}px${gridIsVisible ? ' (grid snap)' : ''}`)
         }
       } else if (activeTool === 'select') {
-        const selectedWallId = handleSelectionClick(point)
+        const selectedWallId = handleSelectionClick(worldPoint)
         if (selectedWallId) {
           onStatusMessage?.(`Selected wall ${selectedWallId.substring(0, 8)}...`)
           const properties = getWallProperties()
@@ -332,7 +394,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           onWallSelected?.([], [])
         }
       } else if (activeTool === 'delete') {
-        const selectedWallId = handleSelectionClick(point)
+        const selectedWallId = handleSelectionClick(worldPoint)
         if (selectedWallId) {
           // Delete the clicked wall immediately
           deleteWalls([selectedWallId])
@@ -347,7 +409,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   }, [
     activeTool, isDrawing, activeWallType, startDrawing, addPoint, getCurrentDrawingLength,
     handleSelectionClick, selectedWallIds, deleteWalls, onStatusMessage, onWallSelected,
-    gridIsVisible, snapPoint, handleUIError
+    gridIsVisible, snapPoint, handleUIError, referenceImage
   ])
 
   // Handle double-click to complete drawing
@@ -395,14 +457,27 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   // Handle mouse move for preview and hover
   const handleMouseMove = useCallback((coordinates: { x: number; y: number }) => {
     onMouseMove?.(coordinates)
+    const world = coordinates
+    if ((globalThis as any).DEBUG_REFERENCE_IMAGE && referenceImage.hasImage) {
+      console.log('🖱️ Canvas move', { world, isLocked: referenceImage.isLocked })
+    }
+    
+    // Handle reference image dragging
+    if (referenceImage.hasImage && !referenceImage.isLocked) {
+      const handled = referenceImage.handleMouseMove({ x: world.x, y: world.y })
+      if (handled) {
+        onStatusMessage?.('Dragging reference image')
+        return
+      }
+    }
     
     if (activeTool === 'draw' && isDrawing) {
-      updatePreview({ x: coordinates.x, y: coordinates.y })
+      updatePreview({ x: world.x, y: world.y })
     } else if (activeTool === 'select' || activeTool === 'delete') {
-      handleSelectionHover({ x: coordinates.x, y: coordinates.y })
+      handleSelectionHover({ x: world.x, y: world.y })
       // Hover feedback is handled by the selection renderer
     }
-  }, [activeTool, isDrawing, updatePreview, handleSelectionHover, onMouseMove])
+  }, [activeTool, isDrawing, updatePreview, handleSelectionHover, onMouseMove, referenceImage, onStatusMessage])
 
   // Cancel drawing when switching away from draw tool
   useEffect(() => {

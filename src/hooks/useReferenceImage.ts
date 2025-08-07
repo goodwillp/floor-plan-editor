@@ -125,6 +125,10 @@ export function useReferenceImage({
   useEffect(() => {
     if (serviceRef.current && layers?.reference) {
       serviceRef.current.setContainer(layers.reference)
+      // Provide selection layer as overlay for outlines if available
+      if (layers.selection) {
+        serviceRef.current.setOverlayContainer(layers.selection as any)
+      }
     }
   }, [layers])
 
