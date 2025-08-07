@@ -182,8 +182,9 @@ export class GridRenderer {
 
     // TEST: Add a simple red rectangle to verify rendering is working
     // Use new PixiJS v8 API - render in screen coordinates
-    this.gridGraphics.fill({ color: 0xff0000, alpha: 0.8 })
-    this.gridGraphics.rect(0, 0, 100, 100)
+    this.gridGraphics.beginFill(0xff0000, 0.8)
+    this.gridGraphics.drawRect(0, 0, 100, 100)
+    this.gridGraphics.endFill()
     console.log('🎨 Added test red rectangle at (0,0) 100x100')
 
     // Render grid in screen coordinates (not world coordinates)
@@ -195,12 +196,20 @@ export class GridRenderer {
    * Render grid in screen coordinates
    */
   private renderGridInScreenCoordinates(): void {
-    // Calculate grid bounds in screen coordinates
-    const padding = this.config.cellSize * 2
+    // Calculate grid bounds in screen coordinates - fill entire canvas
+    // Calculate grid bounds with minimal padding to prevent clipping
+    const padding = this.config.cellSize // Reduced padding to prevent clipping
     const startX = -padding
     const endX = this.canvasWidth + padding
     const startY = -padding
     const endY = this.canvasHeight + padding
+
+    console.log('🎨 Grid bounds calculation:', {
+      canvasSize: { width: this.canvasWidth, height: this.canvasHeight },
+      bounds: { startX, endX, startY, endY },
+      padding,
+      cellSize: this.config.cellSize
+    })
 
     // Calculate grid line positions in screen coordinates
     const minorLinesX = this.calculateGridLines(startX, endX, this.config.cellSize)
@@ -208,6 +217,17 @@ export class GridRenderer {
     
     const majorLinesX = minorLinesX.filter((_, index) => index % this.config.majorInterval === 0)
     const majorLinesY = minorLinesY.filter((_, index) => index % this.config.majorInterval === 0)
+
+    console.log('🎨 Grid lines calculated:', {
+      minorLinesX: minorLinesX.length,
+      minorLinesY: minorLinesY.length,
+      majorLinesX: majorLinesX.length,
+      majorLinesY: majorLinesY.length,
+      firstMinorX: minorLinesX[0],
+      lastMinorX: minorLinesX[minorLinesX.length - 1],
+      firstMinorY: minorLinesY[0],
+      lastMinorY: minorLinesY[minorLinesY.length - 1]
+    })
 
     // Render minor grid lines
     this.renderGridLines(
@@ -298,12 +318,8 @@ export class GridRenderer {
       bounds: { minX, maxX, minY, maxY }
     })
     
-    // Use the new PixiJS v8 stroke method
-    this.gridGraphics.stroke({
-      width,
-      color,
-      alpha
-    })
+    // Set stroke style once for all lines
+    this.gridGraphics.setStrokeStyle({ width, color, alpha })
 
     // Draw vertical lines
     for (const x of xLines) {
@@ -316,6 +332,9 @@ export class GridRenderer {
       this.gridGraphics.moveTo(minX, y)
       this.gridGraphics.lineTo(maxX, y)
     }
+
+    // Apply the stroke to make all lines visible
+    this.gridGraphics.stroke()
   }
 
   /**
@@ -327,11 +346,11 @@ export class GridRenderer {
    * @param maxY Maximum Y coordinate
    */
   private renderOriginAxes(minX: number, maxX: number, minY: number, maxY: number): void {
-    // Use the new PixiJS v8 stroke method
-    this.gridGraphics.stroke({
-      width: this.config.originWidth,
-      color: this.config.originColor,
-      alpha: this.config.originAlpha
+    // Set stroke style for origin axes
+    this.gridGraphics.setStrokeStyle({ 
+      width: this.config.originWidth, 
+      color: this.config.originColor, 
+      alpha: this.config.originAlpha 
     })
 
     // X-axis (horizontal line at Y=0)
@@ -345,6 +364,9 @@ export class GridRenderer {
       this.gridGraphics.moveTo(0, minY)
       this.gridGraphics.lineTo(0, maxY)
     }
+
+    // Apply the stroke to make origin axes visible
+    this.gridGraphics.stroke()
   }
 
   /**

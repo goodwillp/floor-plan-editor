@@ -91,14 +91,14 @@ export function CanvasContainer({
       await app.init({
         width: initWidth,
         height: initHeight,
-        backgroundColor: 0xf0f0f0, // Light gray background instead of white
+        backgroundColor: 0xffffff, // White background for better visibility
         antialias: true,
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
         powerPreference: gl ? 'default' : 'low-power' as any, // Type assertion for compatibility
         failIfMajorPerformanceCaveat: false, // Allow fallback to software rendering
         preserveDrawingBuffer: false, // Reduce memory usage
-        clearBeforeRender: false, // Don't clear before render to preserve our test objects
+        clearBeforeRender: true, // Clear before render to ensure proper background
         preference: gl ? 'webgl' : 'webgl' as any // Force WebGL for now, fallback handled by failIfMajorPerformanceCaveat
       })
 
@@ -107,7 +107,7 @@ export function CanvasContainer({
       
       // Debug: Log canvas background and renderer info
       console.log('🔍 Canvas initialization debug:', {
-        backgroundColor: 0xf0f0f0,
+        backgroundColor: 0xffffff,
         canvasWidth: app.canvas.width,
         canvasHeight: app.canvas.height,
         rendererType: app.renderer.constructor.name,
@@ -151,19 +151,24 @@ export function CanvasContainer({
       // Enable sorting by z-index
       app.stage.sortableChildren = true
 
-      // Add a background rectangle to ensure visibility
-      const backgroundRect = new PIXI.Graphics()
-      backgroundRect.fill({ color: 0xe0e0e0, alpha: 1 }) // Lighter gray for better visibility
-      backgroundRect.rect(0, 0, app.screen.width, app.screen.height)
-      backgroundRect.zIndex = -1 // Below everything else
-      layers.background.addChild(backgroundRect)
-      console.log('🔍 Added background rectangle:', {
-        width: app.screen.width,
-        height: app.screen.height,
-        color: 0xe0e0e0,
-        zIndex: backgroundRect.zIndex,
-        visible: backgroundRect.visible,
-        alpha: backgroundRect.alpha
+      // Add a simple test square directly to stage using PixiJS v8 API
+      const testSquare = new PIXI.Graphics()
+      testSquare.beginFill(0xff0000, 1) // Bright red with full alpha
+      testSquare.drawRect(100, 100, 200, 200) // Large square
+      testSquare.endFill()
+      
+      // Add directly to stage (not to any layer)
+      app.stage.addChild(testSquare)
+      
+      // Force a render
+      app.renderer.render(app.stage)
+      
+      console.log('🔍 Added test red square directly to stage:', {
+        width: 200,
+        height: 200,
+        color: 0xff0000,
+        position: { x: 100, y: 100 },
+        parent: testSquare.parent?.constructor.name
       })
 
       // Store layers reference
@@ -183,9 +188,56 @@ export function CanvasContainer({
 
       // Add canvas to DOM
       if (containerRef.current) {
+        // Force canvas to be visible
+        canvas.style.display = 'block'
+        canvas.style.position = 'absolute'
+        canvas.style.top = '0'
+        canvas.style.left = '0'
+        canvas.style.width = '100%'
+        canvas.style.height = '100%'
+        canvas.style.zIndex = '1'
+        
         containerRef.current.appendChild(canvas)
+        console.log('🔍 Canvas added to DOM:', {
+          canvasWidth: canvas.width,
+          canvasHeight: canvas.height,
+          canvasStyle: canvas.style.cssText,
+          containerChildren: containerRef.current.children.length
+        })
       }
 
+      // Start the PixiJS render loop
+      app.ticker.start()
+      console.log('🔍 PixiJS render loop started')
+      
+      // Ensure canvas is properly sized
+      handleResize()
+      
+      // Debug canvas visibility
+      console.log('🔍 Canvas visibility debug:', {
+        canvasDisplay: canvas.style.display,
+        canvasVisibility: canvas.style.visibility,
+        canvasOpacity: canvas.style.opacity,
+        canvasPosition: canvas.style.position,
+        canvasZIndex: canvas.style.zIndex,
+        canvasWidth: canvas.style.width,
+        canvasHeight: canvas.style.height
+      })
+      
+      // Test basic canvas rendering
+      try {
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.fillStyle = '#ff0000'
+          ctx.fillRect(10, 10, 50, 50)
+          console.log('🔍 Basic canvas test: Drew red square at (10,10)')
+        } else {
+          console.error('🔍 Basic canvas test: Could not get 2D context')
+        }
+      } catch (error) {
+        console.error('🔍 Basic canvas test failed:', error)
+      }
+      
       // Set up basic canvas event handling
       setupEventHandlers(app)
 
@@ -292,32 +344,23 @@ export function CanvasContainer({
       screenHeight: appRef.current.screen.height
     })
     
-    // Clamp dimensions to reasonable limits to prevent WebGL errors
-    const maxDimension = 4096 // WebGL texture size limit
-    const minDimension = 100 // Minimum reasonable dimension
-    const clampedWidth = Math.max(minDimension, Math.min(clientWidth, maxDimension))
-    const clampedHeight = Math.max(minDimension, Math.min(clientHeight, maxDimension))
+    // Use actual container dimensions to fill the entire area
+    const newWidth = Math.max(1, clientWidth)
+    const newHeight = Math.max(1, clientHeight)
     
     // Only resize if dimensions actually changed significantly
     const currentWidth = appRef.current.screen.width
     const currentHeight = appRef.current.screen.height
-    const widthChanged = Math.abs(clampedWidth - currentWidth) > 10
-    const heightChanged = Math.abs(clampedHeight - currentHeight) > 10
+    const widthChanged = Math.abs(newWidth - currentWidth) > 10
+    const heightChanged = Math.abs(newHeight - currentHeight) > 10
     
     if (widthChanged || heightChanged) {
-      if (clampedWidth !== clientWidth || clampedHeight !== clientHeight) {
-        console.warn('🔍 Canvas dimensions clamped:', {
-          original: { width: clientWidth, height: clientHeight },
-          clamped: { width: clampedWidth, height: clampedHeight }
-        })
-      }
-      
-      appRef.current.renderer.resize(clampedWidth, clampedHeight)
+      appRef.current.renderer.resize(newWidth, newHeight)
       
       // Update canvas size state for viewport
-      setCanvasSize({ width: clampedWidth, height: clampedHeight })
+      setCanvasSize({ width: newWidth, height: newHeight })
       
-      console.log('🔍 Canvas resized to:', { width: clampedWidth, height: clampedHeight })
+      console.log('🔍 Canvas resized to container size:', { width: newWidth, height: newHeight })
     } else {
       console.log('🔍 Canvas resize skipped - no significant change')
     }
@@ -327,12 +370,17 @@ export function CanvasContainer({
   useEffect(() => {
     if (!containerRef.current) return
 
-    const resizeObserver = new ResizeObserver(handleResize)
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize()
+    })
+    
     resizeObserver.observe(containerRef.current)
-
+    
     return () => {
       resizeObserver.disconnect()
     }
+    
+    console.log('🔍 ResizeObserver enabled for dynamic canvas resizing')
   }, [handleResize])
 
   // Initialize PixiJS when component mounts
@@ -364,8 +412,8 @@ export function CanvasContainer({
       ref={containerRef}
       data-testid="canvas-container"
       className={cn(
-        'flex-1 bg-white border border-border relative overflow-hidden',
-        'cursor-crosshair min-h-[400px]', // Add minimum height
+        'flex-1 bg-white border border-border relative',
+        'cursor-crosshair min-h-[400px] w-full h-full', // Ensure full width and height
         className
       )}
     >
