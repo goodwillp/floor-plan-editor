@@ -133,11 +133,11 @@ export class ReferenceImageService {
     }
 
     try {
-      // Create object URL for the file
-      const objectUrl = URL.createObjectURL(file)
+      // Convert file to data URL to avoid blob URL issues with Assets system
+      const dataUrl = await this.fileToDataUrl(file)
       
-      // Load texture from the object URL
-      const texture = await PIXI.Assets.load(objectUrl)
+      // Load texture using Image element and BaseTexture to bypass Assets system
+      const texture = await this.loadTextureFromDataUrl(dataUrl)
       
       // Clean up previous image
       this.removeImage()
@@ -169,9 +169,6 @@ export class ReferenceImageService {
       // Reset to default locked state (Requirement 13.3)
       this.config.locked = true
       
-      // Clean up object URL
-      URL.revokeObjectURL(objectUrl)
-      
       // Emit event
       this.emitEvent('image-loaded', this.getEventData())
       
@@ -190,8 +187,8 @@ export class ReferenceImageService {
    */
   async loadImageFromUrl(url: string, filename?: string): Promise<void> {
     try {
-      // Load texture from URL
-      const texture = await PIXI.Assets.load(url)
+      // Load texture using the same direct approach
+      const texture = await this.loadTextureFromUrl(url)
       
       // Clean up previous image
       this.removeImage()
@@ -558,6 +555,70 @@ export class ReferenceImageService {
     ]
     
     return validTypes.includes(file.type.toLowerCase())
+  }
+
+  /**
+   * Convert a file to a data URL
+   */
+  private fileToDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = () => reject(new Error('Failed to read file'))
+      reader.readAsDataURL(file)
+    })
+  }
+
+  /**
+   * Load texture from data URL using Image element
+   */
+  private loadTextureFromDataUrl(dataUrl: string): Promise<PIXI.Texture> {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      
+      img.onload = () => {
+        try {
+          // Create texture directly from Image element
+          const texture = PIXI.Texture.from(img)
+          resolve(texture)
+        } catch (error) {
+          reject(error)
+        }
+      }
+      
+      img.onerror = () => {
+        reject(new Error('Failed to load image'))
+      }
+      
+      img.src = dataUrl
+    })
+  }
+
+  /**
+   * Load texture from URL using Image element
+   */
+  private loadTextureFromUrl(url: string): Promise<PIXI.Texture> {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      
+      img.onload = () => {
+        try {
+          // Create texture directly from Image element
+          const texture = PIXI.Texture.from(img)
+          resolve(texture)
+        } catch (error) {
+          reject(error)
+        }
+      }
+      
+      img.onerror = () => {
+        reject(new Error('Failed to load image'))
+      }
+      
+      img.src = url
+    })
   }
 
   /**

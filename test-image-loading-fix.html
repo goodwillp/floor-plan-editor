@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Loading Test - Fixed Approach</title>
+    <script src="https://pixijs.download/v8.0.0/pixi.min.js"></script>
+</head>
+<body>
+    <h1>Image Loading Test - Fixed Approach</h1>
+    <p>This page tests if the new image loading fix works correctly with PixiJS v8.</p>
+    
+    <input type="file" id="imageInput" accept="image/*">
+    <button onclick="testImageLoading()">Test Image Loading</button>
+    
+    <div id="result"></div>
+    <div id="canvas-container" style="width: 800px; height: 600px; border: 1px solid #ccc; margin-top: 20px;"></div>
+    
+    <script>
+        let app = null;
+        let sprite = null;
+        
+        async function testImageLoading() {
+            const fileInput = document.getElementById('imageInput');
+            const resultDiv = document.getElementById('result');
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                resultDiv.innerHTML = '<p style="color: red;">Please select an image file first.</p>';
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            resultDiv.innerHTML = '<p>Loading image: ' + file.name + '</p>';
+            
+            try {
+                // Initialize PixiJS app if not already done
+                if (!app) {
+                    app = new PIXI.Application({
+                        width: 800,
+                        height: 600,
+                        backgroundColor: 0xFFFFFF,
+                        antialias: true
+                    });
+                    document.getElementById('canvas-container').appendChild(app.view);
+                }
+                
+                // Create object URL
+                const objectUrl = URL.createObjectURL(file);
+                
+                // Load texture using BaseTexture and Texture (new approach)
+                const baseTexture = new PIXI.BaseTexture(objectUrl);
+                const texture = new PIXI.Texture(baseTexture);
+                
+                // Wait for the texture to load
+                await new Promise((resolve, reject) => {
+                    if (baseTexture.valid) {
+                        resolve();
+                    } else {
+                        baseTexture.once('loaded', () => {
+                            URL.revokeObjectURL(objectUrl);
+                            resolve();
+                        });
+                        baseTexture.once('error', (error) => {
+                            URL.revokeObjectURL(objectUrl);
+                            reject(error);
+                        });
+                    }
+                });
+                
+                // Remove previous sprite if exists
+                if (sprite) {
+                    app.stage.removeChild(sprite);
+                    sprite.destroy();
+                }
+                
+                // Create new sprite
+                sprite = new PIXI.Sprite(texture);
+                
+                // Center the sprite
+                sprite.x = (app.screen.width - sprite.width) / 2;
+                sprite.y = (app.screen.height - sprite.height) / 2;
+                
+                // Add to stage
+                app.stage.addChild(sprite);
+                
+                resultDiv.innerHTML = '<p style="color: green;">✅ Image loaded successfully!</p>' +
+                                   '<p>Image dimensions: ' + texture.width + 'x' + texture.height + '</p>' +
+                                   '<p>File size: ' + (file.size / 1024).toFixed(2) + ' KB</p>';
+                
+            } catch (error) {
+                resultDiv.innerHTML = '<p style="color: red;">❌ Error loading image: ' + error.message + '</p>';
+                console.error('Image loading error:', error);
+            }
+        }
+        
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (app) {
+                app.destroy(true);
+            }
+        });
+    </script>
+</body>
+</html>

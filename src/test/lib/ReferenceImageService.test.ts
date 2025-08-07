@@ -24,10 +24,18 @@ vi.mock('pixi.js', () => ({
     addChild: vi.fn(),
     removeChild: vi.fn()
   })),
-  Texture: vi.fn().mockImplementation(() => ({
+  Texture: {
+    from: vi.fn().mockImplementation(() => ({
+      width: 800,
+      height: 600,
+      destroy: vi.fn()
+    }))
+  },
+  BaseTexture: vi.fn().mockImplementation(() => ({
+    valid: true,
+    once: vi.fn(),
     width: 800,
-    height: 600,
-    destroy: vi.fn()
+    height: 600
   }))
 }))
 
@@ -74,7 +82,7 @@ describe('ReferenceImageService', () => {
     }
     
     vi.mocked(PIXI.Sprite).mockImplementation(() => mockSprite)
-    vi.mocked(PIXI.Assets.load).mockResolvedValue(mockTexture)
+    vi.mocked(PIXI.Texture.from).mockResolvedValue(mockTexture)
     
     service = new ReferenceImageService()
   })
@@ -131,7 +139,7 @@ describe('ReferenceImageService', () => {
       
       await service.loadImage(mockFile)
       
-      expect(PIXI.Assets.load).toHaveBeenCalledWith('mock-object-url')
+      expect(PIXI.Texture.from).toHaveBeenCalledWith('mock-object-url')
       expect(PIXI.Sprite).toHaveBeenCalledWith(mockTexture)
       expect(mockContainer.addChild).toHaveBeenCalledWith(mockSprite)
       expect(eventSpy).toHaveBeenCalled()
@@ -168,9 +176,11 @@ describe('ReferenceImageService', () => {
 
     it('should handle loading errors', async () => {
       const mockFile = createMockFile('test.png', 'image/png')
-      vi.mocked(PIXI.Assets.load).mockRejectedValue(new Error('Load failed'))
-      
+      vi.mocked(PIXI.Texture.from).mockRejectedValue(new Error('Load failed'))
+
       await expect(service.loadImage(mockFile)).rejects.toThrow('Failed to load image: Load failed')
+      expect(service.imageInfo).toBeNull()
+      expect(service.imageSprite).toBeNull()
     })
 
     it('should clean up previous image when loading new one', async () => {

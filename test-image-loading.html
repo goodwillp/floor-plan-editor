@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Loading Test</title>
+</head>
+<body>
+    <h1>Image Loading Test</h1>
+    <p>This page tests if the image loading fix works correctly.</p>
+    
+    <input type="file" id="imageInput" accept="image/*">
+    <button onclick="testImageLoading()">Test Image Loading</button>
+    
+    <div id="result"></div>
+    
+    <script>
+        async function testImageLoading() {
+            const fileInput = document.getElementById('imageInput');
+            const resultDiv = document.getElementById('result');
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                resultDiv.innerHTML = '<p style="color: red;">Please select an image file first.</p>';
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            resultDiv.innerHTML = '<p>Testing image loading...</p>';
+            
+            try {
+                // Create object URL
+                const objectUrl = URL.createObjectURL(file);
+                
+                // Test if the URL is valid
+                const img = new Image();
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = objectUrl;
+                });
+                
+                // Clean up object URL
+                URL.revokeObjectURL(objectUrl);
+                
+                resultDiv.innerHTML = `
+                    <p style="color: green;">✅ Image loading test passed!</p>
+                    <p>File: ${file.name}</p>
+                    <p>Size: ${file.size} bytes</p>
+                    <p>Type: ${file.type}</p>
+                    <p>Dimensions: ${img.width} x ${img.height}</p>
+                `;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p style="color: red;">❌ Image loading test failed!</p>
+                    <p>Error: ${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
