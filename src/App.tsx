@@ -52,6 +52,15 @@ function App() {
     zone: true,
     area: true
   })
+  const [wallLayerDebug, setWallLayerDebug] = useState<{
+    layout: { guides: boolean; shell: boolean }
+    zone: { guides: boolean; shell: boolean }
+    area: { guides: boolean; shell: boolean }
+  }>({
+    layout: { guides: false, shell: false },
+    zone: { guides: false, shell: false },
+    area: { guides: false, shell: false }
+  })
   
   // Canvas state
   const [mouseCoordinates, setMouseCoordinates] = useState({ x: 0, y: 0 })
@@ -132,6 +141,34 @@ function App() {
   const handleWallLayerVisibilityChange = useCallback((layer: 'layout' | 'zone' | 'area', visible: boolean) => {
     setWallLayerVisibility(prev => ({ ...prev, [layer]: visible }))
     setStatusMessage(`${visible ? 'Shown' : 'Hidden'} ${layer} walls`)
+  }, [])
+
+  const handleToggleGuides = useCallback((scope: 'all' | 'layout' | 'zone' | 'area') => {
+    setWallLayerDebug(prev => {
+      if (scope === 'all') {
+        const next = !prev.layout.guides || !prev.zone.guides || !prev.area.guides
+        return {
+          layout: { ...prev.layout, guides: next },
+          zone: { ...prev.zone, guides: next },
+          area: { ...prev.area, guides: next }
+        }
+      }
+      return { ...prev, [scope]: { ...prev[scope], guides: !prev[scope].guides } }
+    })
+  }, [])
+
+  const handleToggleShell = useCallback((scope: 'all' | 'layout' | 'zone' | 'area') => {
+    setWallLayerDebug(prev => {
+      if (scope === 'all') {
+        const next = !prev.layout.shell || !prev.zone.shell || !prev.area.shell
+        return {
+          layout: { ...prev.layout, shell: next },
+          zone: { ...prev.zone, shell: next },
+          area: { ...prev.area, shell: next }
+        }
+      }
+      return { ...prev, [scope]: { ...prev[scope], shell: !prev[scope].shell } }
+    })
   }, [])
 
   // Viewport handlers - wrapped in useCallback to prevent infinite re-renders
@@ -396,6 +433,7 @@ function App() {
               gridVisible={gridVisible}
               wallsVisible={wallsVisible}
               wallLayerVisibility={wallLayerVisibility}
+              wallLayerDebug={wallLayerDebug}
               proximityMergingEnabled={proximityMergingEnabled}
               proximityThreshold={proximityThreshold}
               // isPerformanceModeEnabled is not a prop on DrawingCanvas
@@ -425,11 +463,14 @@ function App() {
               hasReferenceImage={referenceImage.hasImage}
               wallsVisible={wallsVisible}
               wallLayerVisibility={wallLayerVisibility}
+              wallLayerDebug={wallLayerDebug}
               gridVisible={gridVisible}
               referenceImageVisible={referenceImage.isVisible}
               referenceImageLocked={referenceImage.isLocked}
               onGridToggle={handleGridToggle}
               onWallsToggle={handleWallsToggle}
+              onToggleGuides={handleToggleGuides}
+              onToggleShell={handleToggleShell}
               onWallLayerVisibilityChange={handleWallLayerVisibilityChange}
               onReferenceImageToggleVisibility={handleReferenceImageToggleVisibility}
               onReferenceImageToggleLock={handleReferenceImageToggleLock}

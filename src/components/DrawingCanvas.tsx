@@ -12,6 +12,7 @@ import { WallRenderer } from '@/lib/WallRenderer'
 import type { Point, WallTypeString } from '@/lib/types'
 import type { Tool } from './ToolPalette'
 import * as PIXI from 'pixi.js'
+import * as martinez from 'martinez-polygon-clipping'
 
 interface DrawingCanvasProps {
   className?: string
@@ -20,6 +21,11 @@ interface DrawingCanvasProps {
   gridVisible?: boolean
   wallsVisible?: boolean
   wallLayerVisibility?: { layout: boolean; zone: boolean; area: boolean }
+  wallLayerDebug?: {
+    layout: { guides: boolean; shell: boolean }
+    zone: { guides: boolean; shell: boolean }
+    area: { guides: boolean; shell: boolean }
+  }
   proximityMergingEnabled?: boolean
   proximityThreshold?: number
   onMouseMove?: (coordinates: { x: number; y: number }) => void
@@ -45,6 +51,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   gridVisible = false,
   wallsVisible = true,
   wallLayerVisibility = { layout: true, zone: true, area: true },
+  wallLayerDebug = { layout: { guides: false, shell: false }, zone: { guides: false, shell: false }, area: { guides: false, shell: false } },
   proximityMergingEnabled = false,
   proximityThreshold = 15,
   onMouseMove,
@@ -60,6 +67,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   const modelRef = useRef(new FloorPlanModel())
   const wallRendererRef = useRef<WallRenderer | null>(null)
   const viewportAPIRef = useRef<CanvasViewportAPI | null>(null)
+  const debugOverlayRef = useRef<PIXI.Container | null>(null)
   const [layers, setLayers] = useState<CanvasLayers | null>(null)
   const [, setApp] = useState<PIXI.Application | null>(null)
   const [canvasSize, setCanvasSize] = useState<{ width: number; height: number } | undefined>(undefined)
@@ -346,6 +354,17 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       
       // Initialize wall renderer
       wallRendererRef.current = new WallRenderer()
+
+      // Create a dedicated container for debug overlays so we don't clear the entire UI layer
+      try {
+        const overlay = new PIXI.Container()
+        overlay.zIndex = 1000
+        ;(overlay as any).eventMode = 'none'
+        canvasLayers.ui.addChild(overlay)
+        debugOverlayRef.current = overlay
+      } catch (e) {
+        console.warn('Failed to create debug overlay container', e)
+      }
       
       onStatusMessage?.('Canvas ready for drawing')
     } catch (error) {
@@ -377,6 +396,117 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   useEffect(() => {
     syncWallVisibility()
   }, [syncWallVisibility])
+
+  // Debug overlays: guides and shell outlines per layer type
+  const renderDebugOverlays = useCallback(() => {
+    const overlay = debugOverlayRef.current
+    if (!overlay) return
+    // Clear previous overlays only from our overlay container
+    overlay.removeChildren()
+
+    const types: Array<'layout' | 'zone' | 'area'> = ['layout', 'zone', 'area']
+    const guidesColor = 0x2aa9ff
+    const nodeFill = 0x1773b0
+    const shellColor = 0xff8800
+    const vertexFill = 0xff8800
+
+    const nodesMap = new Map<string, any>()
+    modelRef.current.getAllNodes().forEach(n => nodesMap.set(n.id, n))
+
+    for (const t of types) {
+      const typeVisible = wallsVisible && (wallLayerVisibility as any)[t] !== false
+      if (!typeVisible) continue
+
+      // Guides: draw segment cores and nodes for this type
+      if ((wallLayerDebug as any)[t]?.guides) {
+        const g = new PIXI.Graphics()
+        g.setStrokeStyle({ width: 1, color: guidesColor, alpha: 0.8 })
+        const seenNode = new Set<string>()
+        modelRef.current.getAllWalls().forEach(wall => {
+          if (wall.type !== t || !wall.visible) return
+          wall.segmentIds.forEach(segId => {
+            const seg = modelRef.current.getSegment(segId)
+            if (!seg) return
+            const a = nodesMap.get(seg.startNodeId)
+            const b = nodesMap.get(seg.endNodeId)
+            if (!a || !b) return
+            g.moveTo(a.x, a.y).lineTo(b.x, b.y)
+            seenNode.add(a.id)
+            seenNode.add(b.id)
+          })
+        })
+        g.stroke()
+        // Draw nodes as small circles
+        g.setFillStyle({ color: nodeFill, alpha: 0.9 })
+        seenNode.forEach(id => {
+          const n = nodesMap.get(id)
+          if (n) g.circle(n.x, n.y, 2)
+        })
+        g.fill()
+        overlay.addChild(g)
+      }
+
+      // Shell Outline: draw union shell outline and vertices
+      if ((wallLayerDebug as any)[t]?.shell) {
+        const g = new PIXI.Graphics()
+        g.setStrokeStyle({ width: 1, color: shellColor, alpha: 0.9 })
+        g.setFillStyle({ color: vertexFill, alpha: 0.9 })
+        modelRef.current.getAllWalls().forEach(wall => {
+          if (wall.type !== t || !wall.visible) return
+          const half = wall.thickness / 2
+          const rings: number[][][] = []
+          wall.segmentIds.forEach(segId => {
+            const seg = modelRef.current.getSegment(segId)
+            if (!seg) return
+            const a = nodesMap.get(seg.startNodeId)
+            const b = nodesMap.get(seg.endNodeId)
+            if (!a || !b) return
+            const vx = b.x - a.x
+            const vy = b.y - a.y
+            const len = Math.hypot(vx, vy) || 1
+            const nx = -vy / len
+            const ny = vx / len
+            const p1 = [a.x + nx * half, a.y + ny * half]
+            const p2 = [b.x + nx * half, b.y + ny * half]
+            const p3 = [b.x - nx * half, b.y - ny * half]
+            const p4 = [a.x - nx * half, a.y - ny * half]
+            rings.push([p1, p2, p3, p4, p1])
+          })
+          if (rings.length === 0) return
+          let unionResult: any = null
+          for (const r of rings) {
+            const poly = [r]
+            unionResult = unionResult ? martinez.union(unionResult, poly) : poly
+          }
+          if (!unionResult) return
+          const isMulti = Array.isArray(unionResult[0][0][0])
+          const multipoly: number[][][][] = isMulti ? unionResult : [unionResult]
+          multipoly.forEach(polygon => {
+            polygon.forEach(ring => {
+              const [x0, y0] = ring[0]
+              g.moveTo(x0, y0)
+              for (let i = 1; i < ring.length; i++) {
+                const [x, y] = ring[i]
+                g.lineTo(x, y)
+              }
+              g.closePath()
+              // Draw vertices
+              ring.forEach(([vx, vy]) => {
+                g.circle(vx, vy, 1.8)
+              })
+            })
+          })
+          g.stroke()
+          g.fill()
+        })
+        overlay.addChild(g)
+      }
+    }
+  }, [layers, wallsVisible, wallLayerVisibility, wallLayerDebug])
+
+  useEffect(() => {
+    renderDebugOverlays()
+  }, [renderDebugOverlays])
 
   // Handle canvas clicks based on active tool
   const handleCanvasClick = useCallback((point: Point) => {

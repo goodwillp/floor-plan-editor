@@ -15,7 +15,9 @@ import {
   Lock,
   Unlock,
   Merge,
-  Shield
+  Shield,
+  Crosshair,
+  Shapes
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { WallTypeString } from '@/lib/types'
@@ -54,6 +56,11 @@ interface SidebarProps {
   // Visibility states for layer toggles
   wallsVisible?: boolean
     wallLayerVisibility?: { layout: boolean; zone: boolean; area: boolean }
+    wallLayerDebug?: {
+      layout: { guides: boolean; shell: boolean }
+      zone: { guides: boolean; shell: boolean }
+      area: { guides: boolean; shell: boolean }
+    }
   gridVisible?: boolean
   referenceImageVisible?: boolean
   referenceImageLocked?: boolean
@@ -78,6 +85,8 @@ interface SidebarProps {
   onGridToggle?: () => void
     onWallsToggle?: () => void
     onWallLayerVisibilityChange?: (layer: 'layout' | 'zone' | 'area', visible: boolean) => void
+    onToggleGuides?: (scope: 'all' | 'layout' | 'zone' | 'area') => void
+    onToggleShell?: (scope: 'all' | 'layout' | 'zone' | 'area') => void
   // Error handling props
   errorLog?: any[]
   memoryInfo?: any
@@ -108,6 +117,7 @@ export function Sidebar({
   // Layer visibility states
   wallsVisible = true,
     wallLayerVisibility = { layout: true, zone: true, area: true },
+    wallLayerDebug,
   gridVisible = false,
   referenceImageVisible = true,
   referenceImageLocked = true,
@@ -125,6 +135,8 @@ export function Sidebar({
   onGridToggle,
   onWallsToggle,
     onWallLayerVisibilityChange,
+    onToggleGuides,
+    onToggleShell,
   // Error handling props
   errorLog = [],
   memoryInfo = null,
@@ -289,7 +301,7 @@ export function Sidebar({
               <h3 className="font-semibold mb-3">Layers</h3>
               <div className="space-y-2">
                 <div className="p-2 rounded border">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <button
                       type="button"
                       onClick={() => setShowWallChildren(prev => !prev)}
@@ -300,76 +312,190 @@ export function Sidebar({
                       <ChevronDown className={cn('h-4 w-4 transition-transform', { 'rotate-[-90deg]': !showWallChildren })} />
                       <span>Walls</span>
                     </button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-6 w-6 p-0"
-                      onClick={onWallsToggle}
-                      title={wallsVisible ? 'Hide all walls' : 'Show all walls'}
-                      aria-label={wallsVisible ? 'Hide all walls' : 'Show all walls'}
-                    >
-                      {wallsVisible ? (
-                        <Eye className="h-3 w-3" />
-                      ) : (
-                        <EyeOff className="h-3 w-3" />
-                      )}
-                    </Button>
+                    <div className="ml-auto flex items-center gap-1">
+                      {/* Parent guides toggle (applies to all wall types) */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => onToggleGuides?.('all')}
+                        title="Toggle guides for all wall types"
+                        aria-label="Toggle guides for all wall types"
+                        disabled={!wallsVisible}
+                      >
+                        <Crosshair className={cn('h-3 w-3', {
+                          'opacity-100': (wallLayerDebug?.layout.guides || wallLayerDebug?.zone.guides || wallLayerDebug?.area.guides) && wallsVisible,
+                          'opacity-40': !(wallLayerDebug?.layout.guides || wallLayerDebug?.zone.guides || wallLayerDebug?.area.guides)
+                        })} />
+                      </Button>
+                      {/* Parent shell toggle (applies to all wall types) */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => onToggleShell?.('all')}
+                        title="Toggle shell outline for all wall types"
+                        aria-label="Toggle shell outline for all wall types"
+                        disabled={!wallsVisible}
+                      >
+                        <Shapes className={cn('h-3 w-3', {
+                          'opacity-100': (wallLayerDebug?.layout.shell || wallLayerDebug?.zone.shell || wallLayerDebug?.area.shell) && wallsVisible,
+                          'opacity-40': !(wallLayerDebug?.layout.shell || wallLayerDebug?.zone.shell || wallLayerDebug?.area.shell)
+                        })} />
+                      </Button>
+                      {/* Parent visibility toggle */}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 w-6 p-0"
+                        onClick={onWallsToggle}
+                        title={wallsVisible ? 'Hide all walls' : 'Show all walls'}
+                        aria-label={wallsVisible ? 'Hide all walls' : 'Show all walls'}
+                      >
+                        {wallsVisible ? (
+                          <Eye className="h-3 w-3" />
+                        ) : (
+                          <EyeOff className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                   {showWallChildren && (
-                  <div id="walls-children" className="mt-2 space-y-1">
-                    <div className="flex items-center justify-between rounded px-2 py-1">
-                      <span className="text-xs text-muted-foreground">Layout</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                        onClick={() => onWallLayerVisibilityChange?.('layout', !(wallLayerVisibility?.layout ?? true))}
-                        title={(wallLayerVisibility?.layout ?? true) ? 'Hide layout walls' : 'Show layout walls'}
-                        aria-label={(wallLayerVisibility?.layout ?? true) ? 'Hide layout walls' : 'Show layout walls'}
-                        disabled={!wallsVisible}
-                      >
-                        {(wallLayerVisibility?.layout ?? true) ? (
-                          <Eye className="h-3 w-3" />
-                        ) : (
-                          <EyeOff className="h-3 w-3" />
-                        )}
-                      </Button>
+                  <div id="walls-children" className="mt-2 space-y-2">
+                    {/* Layout row */}
+                    <div className="rounded px-2 py-1 border">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Layout</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => onWallLayerVisibilityChange?.('layout', !(wallLayerVisibility?.layout ?? true))}
+                          title={(wallLayerVisibility?.layout ?? true) ? 'Hide layout walls' : 'Show layout walls'}
+                          aria-label={(wallLayerVisibility?.layout ?? true) ? 'Hide layout walls' : 'Show layout walls'}
+                          disabled={!wallsVisible}
+                        >
+                          {(wallLayerVisibility?.layout ?? true) ? (
+                            <Eye className="h-3 w-3" />
+                          ) : (
+                            <EyeOff className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </div>
+                      <div className="mt-2 flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => onToggleGuides?.('layout')}
+                          disabled={!wallsVisible}
+                          title={wallLayerDebug?.layout.guides ? 'Hide guides' : 'Show guides'}
+                          aria-label={wallLayerDebug?.layout.guides ? 'Hide guides' : 'Show guides'}
+                        >
+                          <Crosshair className={cn('h-3 w-3', wallLayerDebug?.layout.guides ? 'opacity-100' : 'opacity-40')} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => onToggleShell?.('layout')}
+                          disabled={!wallsVisible}
+                          title={wallLayerDebug?.layout.shell ? 'Hide shell outline' : 'Show shell outline'}
+                          aria-label={wallLayerDebug?.layout.shell ? 'Hide shell outline' : 'Show shell outline'}
+                        >
+                          <Shapes className={cn('h-3 w-3', wallLayerDebug?.layout.shell ? 'opacity-100' : 'opacity-40')} />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between rounded px-2 py-1">
-                      <span className="text-xs text-muted-foreground">Zone</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                        onClick={() => onWallLayerVisibilityChange?.('zone', !(wallLayerVisibility?.zone ?? true))}
-                        title={(wallLayerVisibility?.zone ?? true) ? 'Hide zone walls' : 'Show zone walls'}
-                        aria-label={(wallLayerVisibility?.zone ?? true) ? 'Hide zone walls' : 'Show zone walls'}
-                        disabled={!wallsVisible}
-                      >
-                        {(wallLayerVisibility?.zone ?? true) ? (
-                          <Eye className="h-3 w-3" />
-                        ) : (
-                          <EyeOff className="h-3 w-3" />
-                        )}
-                      </Button>
+                    {/* Zone row */}
+                    <div className="rounded px-2 py-1 border">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Zone</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => onWallLayerVisibilityChange?.('zone', !(wallLayerVisibility?.zone ?? true))}
+                          title={(wallLayerVisibility?.zone ?? true) ? 'Hide zone walls' : 'Show zone walls'}
+                          aria-label={(wallLayerVisibility?.zone ?? true) ? 'Hide zone walls' : 'Show zone walls'}
+                          disabled={!wallsVisible}
+                        >
+                          {(wallLayerVisibility?.zone ?? true) ? (
+                            <Eye className="h-3 w-3" />
+                          ) : (
+                            <EyeOff className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </div>
+                      <div className="mt-2 flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => onToggleGuides?.('zone')}
+                          disabled={!wallsVisible}
+                          title={wallLayerDebug?.zone.guides ? 'Hide guides' : 'Show guides'}
+                          aria-label={wallLayerDebug?.zone.guides ? 'Hide guides' : 'Show guides'}
+                        >
+                          <Crosshair className={cn('h-3 w-3', wallLayerDebug?.zone.guides ? 'opacity-100' : 'opacity-40')} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => onToggleShell?.('zone')}
+                          disabled={!wallsVisible}
+                          title={wallLayerDebug?.zone.shell ? 'Hide shell outline' : 'Show shell outline'}
+                          aria-label={wallLayerDebug?.zone.shell ? 'Hide shell outline' : 'Show shell outline'}
+                        >
+                          <Shapes className={cn('h-3 w-3', wallLayerDebug?.zone.shell ? 'opacity-100' : 'opacity-40')} />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between rounded px-2 py-1">
-                      <span className="text-xs text-muted-foreground">Area</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                        onClick={() => onWallLayerVisibilityChange?.('area', !(wallLayerVisibility?.area ?? true))}
-                        title={(wallLayerVisibility?.area ?? true) ? 'Hide area walls' : 'Show area walls'}
-                        aria-label={(wallLayerVisibility?.area ?? true) ? 'Hide area walls' : 'Show area walls'}
-                        disabled={!wallsVisible}
-                      >
-                        {(wallLayerVisibility?.area ?? true) ? (
-                          <Eye className="h-3 w-3" />
-                        ) : (
-                          <EyeOff className="h-3 w-3" />
-                        )}
-                      </Button>
+                    {/* Area row */}
+                    <div className="rounded px-2 py-1 border">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Area</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => onWallLayerVisibilityChange?.('area', !(wallLayerVisibility?.area ?? true))}
+                          title={(wallLayerVisibility?.area ?? true) ? 'Hide area walls' : 'Show area walls'}
+                          aria-label={(wallLayerVisibility?.area ?? true) ? 'Hide area walls' : 'Show area walls'}
+                          disabled={!wallsVisible}
+                        >
+                          {(wallLayerVisibility?.area ?? true) ? (
+                            <Eye className="h-3 w-3" />
+                          ) : (
+                            <EyeOff className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </div>
+                      <div className="mt-2 flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => onToggleGuides?.('area')}
+                          disabled={!wallsVisible}
+                          title={wallLayerDebug?.area.guides ? 'Hide guides' : 'Show guides'}
+                          aria-label={wallLayerDebug?.area.guides ? 'Hide guides' : 'Show guides'}
+                        >
+                          <Crosshair className={cn('h-3 w-3', wallLayerDebug?.area.guides ? 'opacity-100' : 'opacity-40')} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => onToggleShell?.('area')}
+                          disabled={!wallsVisible}
+                          title={wallLayerDebug?.area.shell ? 'Hide shell outline' : 'Show shell outline'}
+                          aria-label={wallLayerDebug?.area.shell ? 'Hide shell outline' : 'Show shell outline'}
+                        >
+                          <Shapes className={cn('h-3 w-3', wallLayerDebug?.area.shell ? 'opacity-100' : 'opacity-40')} />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   )}
