@@ -11,6 +11,55 @@ export class DrawingService {
   private currentPoints: Point[] = []
   private activeWallType: WallTypeString = 'layout'
 
+  // Geometric helpers (kept local to avoid tight coupling)
+  private static isPointOnSegment(point: Point, a: Point, b: Point, tolerance = 1e-4): boolean {
+    const ax = a.x, ay = a.y
+    const bx = b.x, by = b.y
+    const px = point.x, py = point.y
+    const vx = bx - ax
+    const vy = by - ay
+    const wx = px - ax
+    const wy = py - ay
+    const len2 = vx * vx + vy * vy
+    if (len2 < tolerance) {
+      // Degenerate segment: treat as point distance
+      const dx = px - ax
+      const dy = py - ay
+      return Math.sqrt(dx * dx + dy * dy) <= tolerance
+    }
+    const t = (wx * vx + wy * vy) / len2
+    if (t < -tolerance || t > 1 + tolerance) return false
+    const projx = ax + t * vx
+    const projy = ay + t * vy
+    const dist = Math.hypot(px - projx, py - projy)
+    return dist <= tolerance
+  }
+
+  private isSegmentContainedInExistingWall(segId: string): boolean {
+    const seg = (this.model as any).getSegment?.(segId)
+    if (!seg) return false
+    const start = (this.model as any).getNode?.(seg.startNodeId)
+    const end = (this.model as any).getNode?.(seg.endNodeId)
+    if (!start || !end) return false
+    const all = (this.model as any).getAllSegments?.() as any[] | undefined
+    if (!all) return false
+    for (const other of all) {
+      if (other.id === seg.id) continue
+      if (!other.wallId) continue // only consider existing walls
+      const oa = (this.model as any).getNode?.(other.startNodeId)
+      const ob = (this.model as any).getNode?.(other.endNodeId)
+      if (!oa || !ob) continue
+      // If both endpoints of seg lie on the other segment, seg is redundant
+      if (
+        DrawingService.isPointOnSegment(start, oa, ob) &&
+        DrawingService.isPointOnSegment(end, oa, ob)
+      ) {
+        return true
+      }
+    }
+    return false
+  }
+
   constructor(model: FloorPlanModel) {
     this.model = model
   }
@@ -81,32 +130,47 @@ export class DrawingService {
       )
 
       // Create segments between consecutive nodes and process intersections
-      const segments = []
+      // Keep a list of segment IDs that should belong to the new wall. This will
+      // be updated if any of these segments are subdivided due to intersections
+      // (including subdivisions of the new segment itself).
+      const wallSegmentIds: string[] = []
       const intersectionModifications: Array<{originalSegmentId: string, newSegmentIds: string[]}> = []
 
       for (let i = 0; i < nodes.length - 1; i++) {
-        const segment = this.model.createSegment(nodes[i].id, nodes[i + 1].id)
-        if (segment) {
-          segments.push(segment)
+        const created = this.model.createSegment(nodes[i].id, nodes[i + 1].id)
+        if (created) {
+          wallSegmentIds.push(created.id)
           
-          // Process intersections for this new segment
-          // This will subdivide existing segments that intersect with the new one
-          const modifications = this.model.processIntersections(segment.id)
+          // Process intersections for this new segment.
+          // This subdivides existing segments and may also subdivide the new segment.
+          const modifications = this.model.processIntersections(created.id)
           intersectionModifications.push(...modifications)
+
+          // If the just-created segment was subdivided, replace it in wall list
+          const selfMods = modifications.filter(m => m.originalSegmentId === created.id)
+          if (selfMods.length > 0) {
+            // Remove the original id and add all resulting ids
+            const idx = wallSegmentIds.indexOf(created.id)
+            if (idx !== -1) {
+              wallSegmentIds.splice(idx, 1, ...selfMods[selfMods.length - 1].newSegmentIds)
+            }
+          }
         }
       }
 
-      // Create wall with all segments
-      if (segments.length > 0) {
+      // Filter out any segments that are fully contained on an existing wall's centerline
+      const filteredIds = wallSegmentIds.filter(id => !this.isSegmentContainedInExistingWall(id))
+
+      // Create wall with all final segment IDs (only ones that still exist and are not redundant)
+      if (filteredIds.length > 0) {
         const wall = this.model.createWall(
           this.activeWallType,
-          segments.map(s => s.id)
+          filteredIds
         )
 
         this.isDrawing = false
         this.currentPoints = []
         
-        // Log intersection processing for debugging
         if (intersectionModifications.length > 0) {
           console.log(`Wall drawing completed with ${intersectionModifications.length} intersection modifications`)
         }

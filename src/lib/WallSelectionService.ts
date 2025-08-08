@@ -64,6 +64,11 @@ export class WallSelectionService {
   private getDistanceToWall(point: Point, wall: Wall, nodes: Map<string, Node>): number {
     let minDistance = Infinity
 
+    // Treat the wall as a stroked polyline with thickness. Any point inside the
+    // outer shell should count as a hit (distance 0). Outside points measure
+    // distance to the centerline minus half thickness.
+    const halfThickness = (wall.thickness ?? 0) / 2
+
     for (const segmentId of wall.segmentIds) {
       const segment = this.model.getSegment(segmentId)
       if (!segment) continue
@@ -72,8 +77,9 @@ export class WallSelectionService {
       const endNode = nodes.get(segment.endNodeId)
       
       if (startNode && endNode) {
-        const distance = GeometryService.distancePointToLineSegment(point, startNode, endNode)
-        minDistance = Math.min(minDistance, distance)
+        const centerlineDistance = GeometryService.distancePointToLineSegment(point, startNode, endNode)
+        const shellDistance = Math.max(0, centerlineDistance - halfThickness)
+        minDistance = Math.min(minDistance, shellDistance)
       }
     }
 

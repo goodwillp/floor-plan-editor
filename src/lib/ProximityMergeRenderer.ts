@@ -122,10 +122,10 @@ export class ProximityMergeRenderer {
     const mergeColor = this.getMergeColor(wall1, wall2)
     const mergeWidth = this.getMergeWidth(segmentPair.distance)
 
-    graphics.lineStyle(mergeWidth, mergeColor, this.MERGE_ALPHA)
+    graphics.setStrokeStyle({ width: mergeWidth, color: mergeColor, alpha: this.MERGE_ALPHA })
 
     // Method 1: Connect merge points if available
-    if (segmentPair.mergePoints.length >= 2) {
+      if (segmentPair.mergePoints.length >= 2) {
       for (let i = 0; i < segmentPair.mergePoints.length - 1; i++) {
         const point1 = segmentPair.mergePoints[i]
         const point2 = segmentPair.mergePoints[i + 1]
@@ -133,6 +133,7 @@ export class ProximityMergeRenderer {
         graphics.moveTo(point1.x, point1.y)
         graphics.lineTo(point2.x, point2.y)
       }
+        graphics.stroke()
     } else {
       // Method 2: Connect closest points between segments
       const closestPoints = this.findClosestPointsBetweenSegments(
@@ -140,9 +141,10 @@ export class ProximityMergeRenderer {
         { start: start2, end: end2 }
       )
 
-      if (closestPoints) {
+        if (closestPoints) {
         graphics.moveTo(closestPoints.point1.x, closestPoints.point1.y)
         graphics.lineTo(closestPoints.point2.x, closestPoints.point2.y)
+          graphics.stroke()
       }
     }
 
@@ -191,13 +193,12 @@ export class ProximityMergeRenderer {
    * Requirements: 5.3
    */
   private renderMergeIndicators(graphics: PIXI.Graphics, mergePoints: Point[], color: number): void {
-    graphics.beginFill(color, this.MERGE_ALPHA * 0.8)
-
     for (const point of mergePoints) {
-      graphics.drawCircle(point.x, point.y, 3)
+      graphics
+        .setFillStyle({ color, alpha: this.MERGE_ALPHA * 0.8 })
+        .circle(point.x, point.y, 3)
+        .fill()
     }
-
-    graphics.endFill()
   }
 
   /**

@@ -437,15 +437,17 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           onWallCreated?.(wallId)
           onStatusMessage?.(`Created ${activeWallType} wall`)
           
-          // Render the new wall
+          // Re-render ALL walls to reflect intersection-driven subdivisions
+          // and ensure seamless outer shells are updated everywhere.
           if (wallRendererRef.current && layers) {
-            const wall = modelRef.current.getWall(wallId)
-            if (wall) {
-              const segments = wall.segmentIds.map(id => modelRef.current.getSegment(id)).filter(Boolean) as any[]
-              const nodes = new Map()
-              modelRef.current.getAllNodes().forEach(node => nodes.set(node.id, node))
-              wallRendererRef.current.renderWall(wall, segments, nodes, layers.wall)
-            }
+            const nodes = new Map()
+            modelRef.current.getAllNodes().forEach(node => nodes.set(node.id, node))
+            modelRef.current.getAllWalls().forEach(wall => {
+              const segments = wall.segmentIds
+                .map(id => modelRef.current.getSegment(id))
+                .filter(Boolean) as any[]
+              wallRendererRef.current!.renderWall(wall, segments, nodes, layers.wall)
+            })
           }
           // Refresh proximity merges after wall creation
           refreshProximityMerges()
@@ -484,7 +486,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       }
     }
     
-    if (activeTool === 'draw' && isDrawing) {
+    if (activeTool === 'draw') {
+      // Always update to show snap guides even when not actively drawing
       updatePreview({ x: world.x, y: world.y })
     } else if (activeTool === 'select' || activeTool === 'delete') {
       handleSelectionHover({ x: world.x, y: world.y })

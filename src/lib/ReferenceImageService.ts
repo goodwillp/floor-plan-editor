@@ -550,9 +550,11 @@ export class ReferenceImageService {
         g.rect(b.x, b.y, b.width, b.height)
         g.stroke({ width: 2, color: 0x4f46e5, alpha: 0.95 })
       } else {
-        // Fallback for older API if needed
-        this.selectionOverlay.lineStyle(2, 0x4f46e5, 0.95)
-        this.selectionOverlay.drawRect(b.x, b.y, b.width, b.height)
+      // Pixi v8 stroke for selection overlay
+      this.selectionOverlay
+        .setStrokeStyle({ width: 2, color: 0x4f46e5 as number, alpha: 0.95 })
+        .rect(b.x, b.y, b.width, b.height)
+        .stroke()
       }
       if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
         console.log('📐 selection overlay updated', b)

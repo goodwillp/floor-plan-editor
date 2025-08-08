@@ -214,9 +214,10 @@ export class WallRenderer {
 
     graphics.clear()
     graphics
-      .lineStyle(1, 0xFF0000, 0.3) // Red debug line
+      .setStrokeStyle({ width: 1, color: 0xFF0000, alpha: 0.3 }) // Red debug line
       .moveTo(startNode.x, startNode.y)
       .lineTo(endNode.x, endNode.y)
+      .stroke()
   }
 
   /**

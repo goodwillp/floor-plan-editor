@@ -9,20 +9,24 @@ import type { Point, WallTypeString } from './types'
 export class DrawingRenderer {
   private graphics: PIXI.Graphics
   private previewGraphics: PIXI.Graphics
+  private guideGraphics: PIXI.Graphics
   private container: PIXI.Container
 
   constructor(container: PIXI.Container) {
     this.container = container
     this.graphics = new PIXI.Graphics()
     this.previewGraphics = new PIXI.Graphics()
+    this.guideGraphics = new PIXI.Graphics()
     
     // Add graphics to container
     this.container.addChild(this.graphics)
     this.container.addChild(this.previewGraphics)
+    this.container.addChild(this.guideGraphics)
     
     // Set z-index for proper layering
     this.graphics.zIndex = 1
     this.previewGraphics.zIndex = 2
+    this.guideGraphics.zIndex = 3
   }
 
   /**
@@ -37,23 +41,23 @@ export class DrawingRenderer {
     // const thickness = WALL_THICKNESS[wallType] // For future use
     const color = this.getWallTypeColor(wallType)
     
-    // Draw line segments between points
-    this.graphics.lineStyle(2, color, 0.8)
-    
+    // Draw line segments between points (Pixi v8)
+    this.graphics
+      .setStrokeStyle({ width: 3, color, alpha: 0.9 })
+      .moveTo(points[0].x, points[0].y)
     for (let i = 0; i < points.length - 1; i++) {
-      const start = points[i]
       const end = points[i + 1]
-      
-      this.graphics.moveTo(start.x, start.y)
       this.graphics.lineTo(end.x, end.y)
     }
+    this.graphics.stroke()
 
     // Draw nodes at each point
-    this.graphics.beginFill(color, 0.8)
     points.forEach(point => {
-      this.graphics.drawCircle(point.x, point.y, 3)
+      this.graphics
+        .setFillStyle({ color, alpha: 0.8 })
+        .circle(point.x, point.y, 3)
+        .fill()
     })
-    this.graphics.endFill()
   }
 
   /**
@@ -65,14 +69,17 @@ export class DrawingRenderer {
     
     const color = this.getWallTypeColor(wallType)
     
-    // Draw dashed preview line
-    this.previewGraphics.lineStyle(1, color, 0.5)
+    // Draw dashed preview line (Pixi v8)
+    this.previewGraphics
+      .setStrokeStyle({ width: 2, color, alpha: 0.6 })
     this.drawDashedLine(this.previewGraphics, start, end, 5, 5)
+    this.previewGraphics.stroke()
     
     // Draw preview end point
-    this.previewGraphics.beginFill(color, 0.5)
-    this.previewGraphics.drawCircle(end.x, end.y, 2)
-    this.previewGraphics.endFill()
+    this.previewGraphics
+      .setFillStyle({ color, alpha: 0.5 })
+      .circle(end.x, end.y, 2)
+      .fill()
   }
 
   /**
@@ -81,6 +88,27 @@ export class DrawingRenderer {
   clear(): void {
     this.graphics.clear()
     this.previewGraphics.clear()
+    this.guideGraphics.clear()
+  }
+
+  /**
+   * Render snapping guide for nearest wall segment and snapped point
+   */
+  renderSnapGuide(guideStart?: Point, guideEnd?: Point, snappedPoint?: Point): void {
+    this.guideGraphics.clear()
+    if (guideStart && guideEnd) {
+      this.guideGraphics
+        .setStrokeStyle({ width: 3, color: 0x3b82f6, alpha: 0.85 })
+        .moveTo(guideStart.x, guideStart.y)
+        .lineTo(guideEnd.x, guideEnd.y)
+        .stroke()
+    }
+    if (snappedPoint) {
+      this.guideGraphics
+        .setFillStyle({ color: 0x3b82f6, alpha: 1 })
+        .circle(snappedPoint.x, snappedPoint.y, 6)
+        .fill()
+    }
   }
 
   /**

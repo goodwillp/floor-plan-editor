@@ -116,7 +116,11 @@ export class SelectionRenderer {
 
     if (this.selectedWallIds.size === 0) return
 
-    this.selectionGraphics.lineStyle(this.SELECTION_WIDTH, this.SELECTION_COLOR, this.SELECTION_ALPHA)
+    this.selectionGraphics.setStrokeStyle({
+      width: this.SELECTION_WIDTH,
+      color: this.SELECTION_COLOR,
+      alpha: this.SELECTION_ALPHA
+    })
 
     for (const wallId of this.selectedWallIds) {
       this.renderWallHighlight(wallId, this.selectionGraphics)
@@ -134,7 +138,11 @@ export class SelectionRenderer {
       return // Don't show hover for selected walls
     }
 
-    this.hoverGraphics.lineStyle(this.HOVER_WIDTH, this.HOVER_COLOR, this.HOVER_ALPHA)
+    this.hoverGraphics.setStrokeStyle({
+      width: this.HOVER_WIDTH,
+      color: this.HOVER_COLOR,
+      alpha: this.HOVER_ALPHA
+    })
 
     this.renderWallHighlight(this.hoveredWallId, this.hoverGraphics)
   }
@@ -196,18 +204,20 @@ export class SelectionRenderer {
       }
     }
 
-    // Render handles at each node
-    handleGraphics.beginFill(0xffffff, 0.9)
-    handleGraphics.lineStyle(2, this.SELECTION_COLOR, 1)
+    // Render handles at each node (Pixi v8)
+    handleGraphics.setStrokeStyle({ width: 2, color: this.SELECTION_COLOR, alpha: 1 })
 
     for (const nodeId of wallNodes) {
       const node = nodes.get(nodeId)
       if (node) {
-        handleGraphics.drawCircle(node.x, node.y, 4)
+        handleGraphics
+          .setFillStyle({ color: 0xffffff, alpha: 0.9 })
+          .circle(node.x, node.y, 4)
+          .fill()
       }
     }
 
-    handleGraphics.endFill()
+    // No endFill in v8; each circle was filled individually
     this.container.addChild(handleGraphics)
 
     // Store reference for cleanup
@@ -240,10 +250,12 @@ export class SelectionRenderer {
     const width = Math.abs(endPoint.x - startPoint.x)
     const height = Math.abs(endPoint.y - startPoint.y)
 
-    rectGraphics.lineStyle(1, 0x0066ff, 0.8)
-    rectGraphics.beginFill(0x0066ff, 0.1)
-    rectGraphics.drawRect(minX, minY, width, height)
-    rectGraphics.endFill()
+    rectGraphics
+      .setStrokeStyle({ width: 1, color: 0x0066ff, alpha: 0.8 })
+      .setFillStyle({ color: 0x0066ff, alpha: 0.1 })
+      .rect(minX, minY, width, height)
+      .fill()
+      .stroke()
 
     this.container.addChild(rectGraphics)
 

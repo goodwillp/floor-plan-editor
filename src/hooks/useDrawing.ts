@@ -131,16 +131,55 @@ export function useDrawing({
   }, [])
 
   const updatePreview = useCallback((mousePosition: Point) => {
-    if (!drawingServiceRef.current || !drawingRendererRef.current || !isDrawing) return
+    if (!drawingServiceRef.current || !drawingRendererRef.current) return
 
+    // Always show preview line when drawing; otherwise only guides
     const previewLine = drawingServiceRef.current.getPreviewLine(mousePosition)
-    if (previewLine) {
+    if (isDrawing && previewLine) {
       drawingRendererRef.current.renderPreviewLine(
         previewLine.start,
         previewLine.end,
         activeWallType
       )
+    } else {
+      drawingRendererRef.current.renderPreviewLine({ x: 0, y: 0 }, { x: 0, y: 0 }, activeWallType)
     }
+
+    // Compute snap guides to nearest existing segment
+    const model: FloorPlanModel = (drawingServiceRef.current as any).model
+    const segments = (model as any).getAllSegments?.() as any[] | undefined
+    if (segments && segments.length > 0) {
+      let minDist = Infinity
+      let nearest: any = null
+      segments.forEach((seg: any) => {
+        const start = (model as any).getNode(seg.startNodeId)
+        const end = (model as any).getNode(seg.endNodeId)
+        if (start && end) {
+          const d = Math.abs(((end.y - start.y) * mousePosition.x - (end.x - start.x) * mousePosition.y + end.x * start.y - end.y * start.x) /
+            Math.hypot(end.y - start.y, end.x - start.x))
+          if (d < minDist) {
+            minDist = d
+            nearest = { start, end }
+          }
+        }
+      })
+      const SNAP_TOL = 10
+      if (nearest && minDist <= SNAP_TOL) {
+        // Project mouse to nearest segment for a snapped visual
+        const ax = nearest.start.x, ay = nearest.start.y
+        const bx = nearest.end.x, by = nearest.end.y
+        const vx = bx - ax, vy = by - ay
+        const wx = mousePosition.x - ax, wy = mousePosition.y - ay
+        const len2 = vx * vx + vy * vy
+        const t = len2 > 0 ? Math.max(0, Math.min(1, (wx * vx + wy * vy) / len2)) : 0
+        const px = ax + t * vx
+        const py = ay + t * vy
+        drawingRendererRef.current.renderSnapGuide({ x: ax, y: ay }, { x: bx, y: by }, { x: px, y: py })
+        return
+      }
+    }
+    // Clear guides if none
+    drawingRendererRef.current.renderSnapGuide()
   }, [isDrawing, activeWallType])
 
   const getCurrentDrawingLength = useCallback(() => {

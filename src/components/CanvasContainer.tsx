@@ -53,6 +53,7 @@ export function CanvasContainer({
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 })
   const lastClickTimeRef = useRef(0)
+  const lastWorldPointRef = useRef<Point>({ x: 0, y: 0 })
   // Keep latest handlers to avoid stale closures in Pixi/DOM listeners
   const onMouseMoveRef = useRef<typeof onMouseMove | null>(null)
   const onCanvasClickRef = useRef<typeof onCanvasClick | null>(null)
@@ -196,6 +197,7 @@ export function CanvasContainer({
         canvas.style.userSelect = 'none'
         ;(canvas.style as any).webkitUserDrag = 'none'
         canvas.setAttribute('draggable', 'false')
+        canvas.setAttribute('tabindex', '0')
         canvas.addEventListener('dragstart', (e) => e.preventDefault())
         canvas.addEventListener('dragover', (e) => e.preventDefault())
         canvas.addEventListener('drop', (e) => e.preventDefault())
@@ -269,6 +271,7 @@ export function CanvasContainer({
       onMouseMoveRef.current?.(world)
       // Bridge to viewport panning handler
       viewport.handleMouseMove(ev as unknown as MouseEvent)
+      lastWorldPointRef.current = world
     }
     const handlePointerDown = (ev: PointerEvent) => {
       ev.preventDefault()
@@ -277,6 +280,8 @@ export function CanvasContainer({
       const screenY = Math.round(ev.clientY - rect.top)
       const worldPoint: Point = viewport.screenToWorld(screenX, screenY)
       console.log('🔍 Canvas pointerdown', { worldPoint, button: ev.button })
+      lastWorldPointRef.current = worldPoint
+      canvas.focus()
       const now = performance.now()
       const isDouble = now - lastClickTimeRef.current < 300
       lastClickTimeRef.current = now
@@ -300,6 +305,13 @@ export function CanvasContainer({
     canvas.addEventListener('pointermove', handlePointerMove)
     canvas.addEventListener('pointerdown', handlePointerDown, { passive: false })
     canvas.addEventListener('pointerup', handlePointerUp)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        onCanvasDoubleClickRef.current?.(lastWorldPointRef.current)
+        e.preventDefault()
+      }
+    }
+    canvas.addEventListener('keydown', handleKeyDown)
 
     // Prevent context menu on right click
     canvas.addEventListener('contextmenu', (e) => {
@@ -314,6 +326,7 @@ export function CanvasContainer({
       canvas.removeEventListener('pointermove', handlePointerMove)
       canvas.removeEventListener('pointerdown', handlePointerDown)
       canvas.removeEventListener('pointerup', handlePointerUp)
+      canvas.removeEventListener('keydown', handleKeyDown)
       canvas.removeEventListener('wheel', viewport.handleWheel)
     }
   }, [onMouseMove, onCanvasClick, onCanvasDoubleClick, onCanvasRightClick, viewport.handleWheel, viewport.handleMouseDown, viewport.handleMouseMove, viewport.handleMouseUp])
