@@ -7,6 +7,7 @@ export interface SimpleIconButtonProps extends Omit<ButtonProps, 'children'> {
   icon: LucideIcon
   isActive?: boolean
   iconSize?: number
+  title?: string
 }
 
 /**
@@ -20,8 +21,12 @@ const SimpleIconButton = React.memo(React.forwardRef<HTMLButtonElement, SimpleIc
     className,
     variant = 'ghost',
     size = 'sm',
+    title,
     ...props 
   }, ref) => {
+    // Prefer explicit title, fallback to aria-label from props for native tooltip
+    const ariaLabel = (props as any)['aria-label'] as string | undefined
+    const effectiveTitle = title ?? ariaLabel
     return (
       <Button
         ref={ref}
@@ -32,6 +37,8 @@ const SimpleIconButton = React.memo(React.forwardRef<HTMLButtonElement, SimpleIc
           isActive && 'bg-primary text-primary-foreground hover:bg-primary/90',
           className
         )}
+        aria-label={ariaLabel || effectiveTitle}
+        title={effectiveTitle}
         {...props}
       >
         <Icon size={iconSize} />
