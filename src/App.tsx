@@ -415,9 +415,11 @@ function App() {
               wallsVisible={wallsVisible}
               gridVisible={gridVisible}
               referenceImageVisible={referenceImage.isVisible}
+              referenceImageLocked={referenceImage.isLocked}
               onGridToggle={handleGridToggle}
               onWallsToggle={handleWallsToggle}
               onReferenceImageToggleVisibility={handleReferenceImageToggleVisibility}
+              onReferenceImageToggleLock={handleReferenceImageToggleLock}
               proximityMergingEnabled={proximityMergingEnabled}
               proximityThreshold={proximityThreshold}
               activeMerges={activeMerges}
