@@ -36,25 +36,35 @@ export class WallRenderer {
     }
 
     const graphics = new PIXI.Graphics()
-    
-    // Set wall style based on type
     const style = this.getWallStyle(wall.type)
-    
-    // Render outer shell for each segment
-    segments.forEach(segment => {
-      const startNode = nodes.get(segment.startNodeId)
-      const endNode = nodes.get(segment.endNodeId)
-      
-      if (startNode && endNode) {
-        this.renderSegmentOuterShell(
-          graphics,
-          startNode,
-          endNode,
-          wall.thickness,
-          style
-        )
+
+    // Build ordered path through wall segments to avoid gaps/overlaps
+    const path = this.buildOrderedPath(wall, segments, nodes)
+
+    if (path.length >= 2) {
+      // Use stroke with configured thickness and join to create a seamless outer shell
+      graphics
+        .setStrokeStyle({
+          width: wall.thickness,
+          color: style.fillColor,
+          alpha: style.fillAlpha,
+          join: 'miter',
+          miterLimit: 8
+        })
+        .moveTo(path[0].x, path[0].y)
+
+      for (let i = 1; i < path.length; i++) {
+        graphics.lineTo(path[i].x, path[i].y)
       }
-    })
+
+      // Do not close path unless the wall is actually a loop
+      if (path[0].x === path[path.length - 1].x && path[0].y === path[path.length - 1].y) {
+        graphics.closePath()
+      }
+
+      // Apply stroke to render the outer shell
+      graphics.stroke()
+    }
 
     // Store graphics reference
     this.wallGraphics.set(wall.id, graphics)
@@ -65,45 +75,52 @@ export class WallRenderer {
    * Render the outer shell of a segment
    * Requirements: 1.4, 1.5
    */
-  private renderSegmentOuterShell(
-    graphics: PIXI.Graphics,
-    startNode: Node,
-    endNode: Node,
-    thickness: number,
-    style: WallStyle
-  ): void {
-    // Calculate perpendicular vector for thickness
-    const dx = endNode.x - startNode.x
-    const dy = endNode.y - startNode.y
-    const length = Math.sqrt(dx * dx + dy * dy)
-    
-    if (length === 0) return
-    
-    // Normalize and get perpendicular vector
-    const normalX = -dy / length
-    const normalY = dx / length
-    
-    // Half thickness offset
-    const halfThickness = thickness / 2
-    const offsetX = normalX * halfThickness
-    const offsetY = normalY * halfThickness
-    
-    // Calculate outer shell points
-    const topStart = { x: startNode.x + offsetX, y: startNode.y + offsetY }
-    const topEnd = { x: endNode.x + offsetX, y: endNode.y + offsetY }
-    const bottomStart = { x: startNode.x - offsetX, y: startNode.y - offsetY }
-    const bottomEnd = { x: endNode.x - offsetX, y: endNode.y - offsetY }
-    
-    // Draw outer shell as filled rectangle
-    graphics
-      .beginFill(style.fillColor, style.fillAlpha)
-      .lineStyle(style.lineWidth, style.lineColor, style.lineAlpha)
-      .moveTo(topStart.x, topStart.y)
-      .lineTo(topEnd.x, topEnd.y)
-      .lineTo(bottomEnd.x, bottomEnd.y)
-      .lineTo(bottomStart.x, bottomStart.y)
-      .closePath()
-      .endFill()
+  // Build an ordered node path across all wall segments, following creation order
+  private buildOrderedPath(wall: Wall, segments: Segment[], nodes: Map<string, Node>): Array<{x: number; y: number}> {
+    // Map from id -> segment for quick lookup and start with the first segment id
+    const idToSegment = new Map<string, Segment>()
+    segments.forEach(s => idToSegment.set(s.id, s))
+
+    const path: string[] = [] // node ids in order
+
+    if (wall.segmentIds.length === 0) return []
+
+    const firstSeg = idToSegment.get(wall.segmentIds[0])
+    if (!firstSeg) return []
+
+    // Initialize with first segment start -> end
+    path.push(firstSeg.startNodeId, firstSeg.endNodeId)
+
+    // Walk through remaining segments and append in order
+    for (let i = 1; i < wall.segmentIds.length; i++) {
+      const seg = idToSegment.get(wall.segmentIds[i])
+      if (!seg) continue
+      const lastNodeId = path[path.length - 1]
+      if (seg.startNodeId === lastNodeId) {
+        path.push(seg.endNodeId)
+      } else if (seg.endNodeId === lastNodeId) {
+        path.push(seg.startNodeId)
+      } else {
+        // Fallback: if the segment connects to the first node, prepend
+        const firstNodeId = path[0]
+        if (seg.endNodeId === firstNodeId) {
+          path.unshift(seg.startNodeId)
+        } else if (seg.startNodeId === firstNodeId) {
+          path.unshift(seg.endNodeId)
+        } else {
+          // If it does not connect, start a new subpath (rare). For now, append start->end.
+          path.push(seg.startNodeId, seg.endNodeId)
+        }
+      }
+    }
+
+    // Convert to coordinates
+    const coords: Array<{x: number; y: number}> = []
+    path.forEach(nodeId => {
+      const n = nodes.get(nodeId)
+      if (n) coords.push({ x: n.x, y: n.y })
+    })
+    return coords
   }
 
   /**
@@ -247,24 +264,26 @@ export class WallRenderer {
       return
     }
 
-    // Set wall style based on type
     const style = this.getWallStyle(wall.type)
-    
-    // Render outer shell for each segment
-    segments.forEach(segment => {
-      const startNode = nodes.get(segment.startNodeId)
-      const endNode = nodes.get(segment.endNodeId)
-      
-      if (startNode && endNode) {
-        this.renderSegmentOuterShell(
-          graphics,
-          startNode,
-          endNode,
-          wall.thickness,
-          style
-        )
+    const path = this.buildOrderedPath(wall, segments, nodes)
+    if (path.length >= 2) {
+      graphics
+        .setStrokeStyle({
+          width: wall.thickness,
+          color: style.fillColor,
+          alpha: style.fillAlpha,
+          join: 'miter',
+          miterLimit: 8
+        })
+        .moveTo(path[0].x, path[0].y)
+      for (let i = 1; i < path.length; i++) {
+        graphics.lineTo(path[i].x, path[i].y)
       }
-    })
+      if (path[0].x === path[path.length - 1].x && path[0].y === path[path.length - 1].y) {
+        graphics.closePath()
+      }
+      graphics.stroke()
+    }
   }
 
   /**
