@@ -60,6 +60,27 @@ export class DrawingService {
     return false
   }
 
+  private findExistingNodeNear(point: Point, tolerance = 1e-4): string | null {
+    const nodes = (this.model as any).getAllNodes?.() as any[] | undefined
+    if (!nodes) return null
+    for (const n of nodes) {
+      if (Math.hypot(n.x - point.x, n.y - point.y) <= tolerance) return n.id
+    }
+    return null
+  }
+
+  private findSegmentContainingPoint(point: Point, tolerance = 1e-4): string | null {
+    const segs = (this.model as any).getAllSegments?.() as any[] | undefined
+    if (!segs) return null
+    for (const s of segs) {
+      const a = (this.model as any).getNode?.(s.startNodeId)
+      const b = (this.model as any).getNode?.(s.endNodeId)
+      if (!a || !b) continue
+      if (DrawingService.isPointOnSegment(point, a, b, tolerance)) return s.id
+    }
+    return null
+  }
+
   constructor(model: FloorPlanModel) {
     this.model = model
   }
@@ -137,7 +158,45 @@ export class DrawingService {
       const intersectionModifications: Array<{originalSegmentId: string, newSegmentIds: string[]}> = []
 
       for (let i = 0; i < nodes.length - 1; i++) {
-        const created = this.model.createSegment(nodes[i].id, nodes[i + 1].id)
+        // Snap endpoints to existing nodes/segments to ensure shared topology
+        const startNode = nodes[i]
+        const endNode = nodes[i + 1]
+
+        // If start is near an existing node, reuse it
+        const existingStartId = this.findExistingNodeNear(startNode) || null
+        // If end is near an existing node, reuse it
+        const existingEndId = this.findExistingNodeNear(endNode) || null
+
+        // If start lands on a segment, subdivide that segment to create a node
+        let startIdToUse = existingStartId
+        if (!startIdToUse) {
+          const segId = this.findSegmentContainingPoint(startNode)
+          if (segId) {
+            const newIds = this.model.subdivideSegment(segId, { x: startNode.x, y: startNode.y })
+            if (newIds && newIds.length > 0) {
+              const nodeId = this.findExistingNodeNear(startNode)
+              if (nodeId) startIdToUse = nodeId
+            }
+          }
+        }
+
+        // If end lands on a segment, subdivide that segment to create a node
+        let endIdToUse = existingEndId
+        if (!endIdToUse) {
+          const segId = this.findSegmentContainingPoint(endNode)
+          if (segId) {
+            const newIds = this.model.subdivideSegment(segId, { x: endNode.x, y: endNode.y })
+            if (newIds && newIds.length > 0) {
+              const nodeId = this.findExistingNodeNear(endNode)
+              if (nodeId) endIdToUse = nodeId
+            }
+          }
+        }
+
+        const startId = startIdToUse ?? startNode.id
+        const endId = endIdToUse ?? endNode.id
+
+        const created = this.model.createSegment(startId, endId)
         if (created) {
           wallSegmentIds.push(created.id)
           
@@ -160,6 +219,31 @@ export class DrawingService {
 
       // Filter out any segments that are fully contained on an existing wall's centerline
       const filteredIds = wallSegmentIds.filter(id => !this.isSegmentContainedInExistingWall(id))
+
+      // If our new path touched exactly one existing wall (through intersection
+      // subdivisions), merge the new segments into that wall instead of
+      // creating a separate wall (only when types match).
+      const touchingWallIds = new Set<string>()
+      for (const mod of intersectionModifications) {
+        for (const newId of mod.newSegmentIds) {
+          const seg = (this.model as any).getSegment?.(newId)
+          if (seg?.wallId) touchingWallIds.add(seg.wallId)
+        }
+      }
+
+      if (filteredIds.length > 0 && touchingWallIds.size === 1) {
+        const targetWallId = Array.from(touchingWallIds)[0]
+        const targetWall = (this.model as any).getWall?.(targetWallId)
+        if (targetWall && targetWall.type === this.activeWallType) {
+          (this.model as any).addSegmentsToWall?.(targetWallId, filteredIds)
+          this.isDrawing = false
+          this.currentPoints = []
+          if (intersectionModifications.length > 0) {
+            console.log(`Wall drawing merged into existing wall (${targetWallId}) with ${intersectionModifications.length} intersection modifications`)
+          }
+          return targetWallId
+        }
+      }
 
       // Create wall with all final segment IDs (only ones that still exist and are not redundant)
       if (filteredIds.length > 0) {

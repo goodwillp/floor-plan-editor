@@ -436,8 +436,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
         if (wallId) {
           onWallCreated?.(wallId)
           onStatusMessage?.(`Created ${activeWallType} wall`)
-          
-          // Re-render ALL walls to reflect intersection-driven subdivisions
+                    // Re-render ALL walls to reflect intersection-driven subdivisions
           // and ensure seamless outer shells are updated everywhere.
           if (wallRendererRef.current && layers) {
             const nodes = new Map()

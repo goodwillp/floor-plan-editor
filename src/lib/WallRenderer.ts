@@ -38,11 +38,11 @@ export class WallRenderer {
     const graphics = new PIXI.Graphics()
     const style = this.getWallStyle(wall.type)
 
-    // Build ordered path through wall segments to avoid gaps/overlaps
-    const path = this.buildOrderedPath(wall, segments, nodes)
+    // Build polylines through wall segments (handles branches and cycles)
+    const polylines = this.buildOrderedPolylines(wall, segments, nodes)
 
-    if (path.length >= 2) {
-      // Use stroke with configured thickness and join to create a seamless outer shell
+    polylines.forEach(path => {
+      if (path.length < 2) return
       graphics
         .setStrokeStyle({
           width: wall.thickness,
@@ -52,19 +52,14 @@ export class WallRenderer {
           miterLimit: 8
         })
         .moveTo(path[0].x, path[0].y)
-
       for (let i = 1; i < path.length; i++) {
         graphics.lineTo(path[i].x, path[i].y)
       }
-
-      // Do not close path unless the wall is actually a loop
       if (path[0].x === path[path.length - 1].x && path[0].y === path[path.length - 1].y) {
         graphics.closePath()
       }
-
-      // Apply stroke to render the outer shell
       graphics.stroke()
-    }
+    })
 
     // Store graphics reference
     this.wallGraphics.set(wall.id, graphics)
@@ -75,52 +70,77 @@ export class WallRenderer {
    * Render the outer shell of a segment
    * Requirements: 1.4, 1.5
    */
-  // Build an ordered node path across all wall segments, following creation order
-  private buildOrderedPath(wall: Wall, segments: Segment[], nodes: Map<string, Node>): Array<{x: number; y: number}> {
-    // Map from id -> segment for quick lookup and start with the first segment id
+  // Build polylines that cover all segments in a wall, handling branches and cycles
+  private buildOrderedPolylines(
+    wall: Wall,
+    segments: Segment[],
+    nodes: Map<string, Node>
+  ): Array<Array<{ x: number; y: number }>> {
     const idToSegment = new Map<string, Segment>()
     segments.forEach(s => idToSegment.set(s.id, s))
 
-    const path: string[] = [] // node ids in order
+    // Adjacency of nodes for the wall's segments
+    const adjacency = new Map<string, Array<{ segId: string; other: string }>>()
+    const wallSegIds = wall.segmentIds.filter(id => idToSegment.has(id))
+    wallSegIds.forEach(id => {
+      const s = idToSegment.get(id)!
+      const a = s.startNodeId
+      const b = s.endNodeId
+      if (!adjacency.has(a)) adjacency.set(a, [])
+      if (!adjacency.has(b)) adjacency.set(b, [])
+      adjacency.get(a)!.push({ segId: id, other: b })
+      adjacency.get(b)!.push({ segId: id, other: a })
+    })
 
-    if (wall.segmentIds.length === 0) return []
+    const visited = new Set<string>() // visited segment ids
+    const polylines: Array<Array<{ x: number; y: number }>> = []
 
-    const firstSeg = idToSegment.get(wall.segmentIds[0])
-    if (!firstSeg) return []
-
-    // Initialize with first segment start -> end
-    path.push(firstSeg.startNodeId, firstSeg.endNodeId)
-
-    // Walk through remaining segments and append in order
-    for (let i = 1; i < wall.segmentIds.length; i++) {
-      const seg = idToSegment.get(wall.segmentIds[i])
-      if (!seg) continue
-      const lastNodeId = path[path.length - 1]
-      if (seg.startNodeId === lastNodeId) {
-        path.push(seg.endNodeId)
-      } else if (seg.endNodeId === lastNodeId) {
-        path.push(seg.startNodeId)
-      } else {
-        // Fallback: if the segment connects to the first node, prepend
-        const firstNodeId = path[0]
-        if (seg.endNodeId === firstNodeId) {
-          path.unshift(seg.startNodeId)
-        } else if (seg.startNodeId === firstNodeId) {
-          path.unshift(seg.endNodeId)
-        } else {
-          // If it does not connect, start a new subpath (rare). For now, append start->end.
-          path.push(seg.startNodeId, seg.endNodeId)
+    const makePath = (startNodeId: string) => {
+      // Find first unvisited edge from the start node
+      const edges = adjacency.get(startNodeId) || []
+      for (const e of edges) {
+        if (visited.has(e.segId)) continue
+        const path: string[] = [startNodeId]
+        let currentNode = startNodeId
+        let prevSeg: string | null = null
+        // Walk until dead-end or we return to start in a cycle
+        while (true) {
+          const nextEdge = (adjacency.get(currentNode) || []).find(ed => !visited.has(ed.segId) && ed.segId !== prevSeg)
+          if (!nextEdge) break
+          visited.add(nextEdge.segId)
+          const nextNode = nextEdge.other
+          path.push(nextNode)
+          prevSeg = nextEdge.segId
+          // If degree at nextNode != 2, we terminate here to avoid jumping branches
+          const deg = (adjacency.get(nextNode) || []).length
+          if (deg !== 2) {
+            currentNode = nextNode
+            break
+          }
+          currentNode = nextNode
+          // If we looped back to start, stop
+          if (currentNode === startNodeId) break
         }
+        // Convert path to coordinates
+        const coords: Array<{ x: number; y: number }> = []
+        path.forEach(nid => {
+          const n = nodes.get(nid)
+          if (n) coords.push({ x: n.x, y: n.y })
+        })
+        if (coords.length >= 2) polylines.push(coords)
       }
     }
 
-    // Convert to coordinates
-    const coords: Array<{x: number; y: number}> = []
-    path.forEach(nodeId => {
-      const n = nodes.get(nodeId)
-      if (n) coords.push({ x: n.x, y: n.y })
-    })
-    return coords
+    // Start from endpoints (degree 1) first for deterministic paths
+    for (const [nodeId, edges] of adjacency.entries()) {
+      if (edges.length === 1) makePath(nodeId)
+    }
+    // Then cover remaining segments (cycles or branches)
+    for (const [nodeId] of adjacency.entries()) {
+      makePath(nodeId)
+    }
+
+    return polylines
   }
 
   /**
@@ -266,8 +286,9 @@ export class WallRenderer {
     }
 
     const style = this.getWallStyle(wall.type)
-    const path = this.buildOrderedPath(wall, segments, nodes)
-    if (path.length >= 2) {
+    const polylines = this.buildOrderedPolylines(wall, segments, nodes)
+    polylines.forEach(path => {
+      if (path.length < 2) return
       graphics
         .setStrokeStyle({
           width: wall.thickness,
@@ -284,7 +305,7 @@ export class WallRenderer {
         graphics.closePath()
       }
       graphics.stroke()
-    }
+    })
   }
 
   /**
