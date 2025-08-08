@@ -18,13 +18,15 @@ interface DrawingCanvasProps {
   activeWallType: WallTypeString
   activeTool: Tool
   gridVisible?: boolean
+  wallsVisible?: boolean
   proximityMergingEnabled?: boolean
   proximityThreshold?: number
   onMouseMove?: (coordinates: { x: number; y: number }) => void
   onWallCreated?: (wallId: string) => void
   onWallSelected?: (wallIds: string[], wallProperties: any[]) => void
   onWallDeleted?: (wallIds: string[]) => void
-  onGridToggle?: () => void
+  // onGridToggle is not used here
+  // onGridToggle?: () => void
   onProximityMergingUpdate?: (merges: any[], stats: any) => void
   onStatusMessage?: (message: string) => void
   onViewportChange?: (viewport: { zoom: number; panX: number; panY: number }) => void
@@ -40,13 +42,14 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   activeWallType,
   activeTool,
   gridVisible = false,
+  wallsVisible = true,
   proximityMergingEnabled = false,
   proximityThreshold = 15,
   onMouseMove,
   onWallCreated,
   onWallSelected,
   onWallDeleted,
-  onGridToggle,
+  // onGridToggle,
   onProximityMergingUpdate,
   onStatusMessage,
   onViewportChange,
@@ -132,7 +135,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   // Grid system hook
   const {
     isVisible: gridIsVisible,
-    toggleGrid,
+    // toggleGrid is unused; grid controlled by parent prop
     setGridVisible,
     snapPoint
   } = useGrid({
@@ -156,6 +159,13 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   const referenceImage = useReferenceImage({
     layers
   })
+
+  // Sync walls layer visibility
+  useEffect(() => {
+    if (layers?.wall) {
+      layers.wall.visible = !!wallsVisible
+    }
+  }, [layers, wallsVisible])
 
   // Error handling hook
   const {

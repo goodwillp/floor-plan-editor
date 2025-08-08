@@ -1,18 +1,18 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { WallPropertiesPanel } from './WallPropertiesPanel'
 import { ProximityMergingPanel } from './ProximityMergingPanel'
 import { ReferenceImagePanel } from './ReferenceImagePanel'
 import { ErrorPanel } from './ErrorPanel'
 import { 
   ChevronLeft, 
-  ChevronRight, 
   Layers, 
   Settings, 
   Image,
   Eye,
   EyeOff,
+  Lock,
+  Unlock,
   Merge,
   Shield
 } from 'lucide-react'
@@ -50,6 +50,11 @@ interface SidebarProps {
   onProximityMergingClearAll?: () => void
   // Reference image props
   hasReferenceImage?: boolean
+  // Visibility states for layer toggles
+  wallsVisible?: boolean
+  gridVisible?: boolean
+  referenceImageVisible?: boolean
+  referenceImageLocked?: boolean
   referenceImageInfo?: {
     name: string
     size: number
@@ -67,6 +72,9 @@ interface SidebarProps {
   onReferenceImageToggleLock?: () => void
   onReferenceImageToggleVisibility?: () => void
   onReferenceImageFitToCanvas?: (mode: any) => void
+  // Layer toggle handlers
+  onGridToggle?: () => void
+  onWallsToggle?: () => void
   // Error handling props
   errorLog?: any[]
   memoryInfo?: any
@@ -94,6 +102,11 @@ export function Sidebar({
   onProximityMergingClearAll,
   // Reference image props
   hasReferenceImage = false,
+  // Layer visibility states
+  wallsVisible = true,
+  gridVisible = false,
+  referenceImageVisible = true,
+  referenceImageLocked = true,
   referenceImageInfo = null,
   referenceImageConfig = null,
   referenceImageLoading = false,
@@ -105,13 +118,14 @@ export function Sidebar({
   onReferenceImageToggleLock,
   onReferenceImageToggleVisibility,
   onReferenceImageFitToCanvas,
+  onGridToggle,
+  onWallsToggle,
   // Error handling props
   errorLog = [],
   memoryInfo = null,
   isRecovering = false,
   errorStats = {},
-  onClearErrors,
-  onSetMemoryThresholds
+  onClearErrors
 }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [activePanel, setActivePanel] = useState<SidebarPanel>(null)
@@ -219,21 +233,72 @@ export function Sidebar({
               <div className="space-y-2">
                 <div className="flex items-center justify-between p-2 rounded border">
                   <span className="text-sm">Walls</span>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                    <Eye className="h-3 w-3" />
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 w-6 p-0"
+                    onClick={onWallsToggle}
+                    title={wallsVisible ? 'Hide walls' : 'Show walls'}
+                    aria-label={wallsVisible ? 'Hide walls' : 'Show walls'}
+                  >
+                    {wallsVisible ? (
+                      <Eye className="h-3 w-3" />
+                    ) : (
+                      <EyeOff className="h-3 w-3" />
+                    )}
                   </Button>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded border">
                   <span className="text-sm">Grid</span>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                    <EyeOff className="h-3 w-3" />
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 w-6 p-0"
+                    onClick={onGridToggle}
+                    title={gridVisible ? 'Hide grid' : 'Show grid'}
+                    aria-label={gridVisible ? 'Hide grid' : 'Show grid'}
+                  >
+                    {gridVisible ? (
+                      <Eye className="h-3 w-3" />
+                    ) : (
+                      <EyeOff className="h-3 w-3" />
+                    )}
                   </Button>
                 </div>
-                <div className="flex items-center justify-between p-2 rounded border">
+                <div className={cn("flex items-center justify-between p-2 rounded border", !hasReferenceImage && 'opacity-50') }>
                   <span className="text-sm">Reference</span>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                    <Eye className="h-3 w-3" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button 
+                      variant={referenceImageLocked ? 'default' : 'outline'}
+                      size="sm" 
+                      className="h-6 w-6 p-0"
+                      onClick={onReferenceImageToggleLock}
+                      title={hasReferenceImage ? (referenceImageLocked ? 'Unlock image movement' : 'Lock image position') : 'No reference image loaded'}
+                      aria-label={hasReferenceImage ? (referenceImageLocked ? 'Unlock Reference Image' : 'Lock Reference Image') : 'Reference image unavailable'}
+                      disabled={!hasReferenceImage}
+                    >
+                      {referenceImageLocked ? (
+                        <Lock className="h-3 w-3" />
+                      ) : (
+                        <Unlock className="h-3 w-3" />
+                      )}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 w-6 p-0"
+                      onClick={onReferenceImageToggleVisibility}
+                      title={hasReferenceImage ? (referenceImageVisible ? 'Hide reference image' : 'Show reference image') : 'No reference image loaded'}
+                      aria-label={hasReferenceImage ? (referenceImageVisible ? 'Hide reference image' : 'Show reference image') : 'Reference image unavailable'}
+                      disabled={!hasReferenceImage}
+                    >
+                      {referenceImageVisible ? (
+                        <Eye className="h-3 w-3" />
+                      ) : (
+                        <EyeOff className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -301,7 +366,6 @@ export function Sidebar({
               isRecovering={isRecovering}
               errorStats={errorStats}
               onClearErrors={onClearErrors || (() => {})}
-              onSetMemoryThresholds={onSetMemoryThresholds || (() => {})}
             />
           )}
         </div>

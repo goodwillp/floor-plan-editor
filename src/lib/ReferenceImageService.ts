@@ -525,6 +525,10 @@ export class ReferenceImageService {
       this.selectionOverlay.visible = false
       ;(this.selectionOverlay as any).eventMode = 'none'
       ;(this.selectionOverlay as any).interactiveChildren = false
+
+
+
+
       const parent = this.overlayContainer ?? this.container!
       parent.addChild(this.selectionOverlay)
       if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {

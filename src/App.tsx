@@ -11,7 +11,7 @@ import { KeyboardShortcutsHelp } from '@/components/KeyboardShortcutsHelp'
 import { useErrorHandler } from '@/hooks/useErrorHandler'
 import { KeyboardShortcutManager, createDefaultShortcuts } from '@/lib/KeyboardShortcuts'
 import { AccessibilityManager } from '@/lib/AccessibilityManager'
-import { isWebGLSupported, getWebGLInfo } from '@/lib/webgl-error-handler'
+import { getWebGLInfo } from '@/lib/webgl-error-handler'
 
 function App() {
   // Tool state
@@ -45,6 +45,8 @@ function App() {
     isLocked: true,
     isVisible: true
   })
+  // Walls layer visibility (separate from per-wall visibility)
+  const [wallsVisible, setWallsVisible] = useState(true)
   
   // Canvas state
   const [mouseCoordinates, setMouseCoordinates] = useState({ x: 0, y: 0 })
@@ -117,6 +119,11 @@ function App() {
     setStatusMessage(gridVisible ? 'Grid hidden' : 'Grid visible')
   }, [gridVisible])
 
+  const handleWallsToggle = useCallback(() => {
+    setWallsVisible(prev => !prev)
+    setStatusMessage(wallsVisible ? 'Walls hidden' : 'Walls visible')
+  }, [wallsVisible])
+
   // Viewport handlers - wrapped in useCallback to prevent infinite re-renders
   const handleViewportChange = useCallback((newViewport: { zoom: number; panX: number; panY: number }) => {
     setViewport(newViewport)
@@ -180,7 +187,7 @@ function App() {
       // Tool operations
       selectTool: () => handleToolChange('select'),
       drawTool: () => handleToolChange('draw'),
-      // moveTool: () => handleToolChange('move'), // Move tool not implemented yet
+      moveTool: () => setStatusMessage('Move tool not implemented'),
       deleteTool: () => handleToolChange('delete'),
       
       // Wall type operations
@@ -210,9 +217,9 @@ function App() {
   }, [])
   
   // Render stats update handler
-  const handleRenderStatsUpdate = useCallback((stats: any) => {
-    setRenderStats(stats)
-  }, [])
+  // const handleRenderStatsUpdate = useCallback((stats: any) => {
+  //   setRenderStats(stats)
+  // }, [])
 
   const handleReferenceImageLoad = useCallback(async (file: File) => {
     try {
@@ -377,19 +384,20 @@ function App() {
               activeWallType={activeWallType}
               activeTool={activeTool}
               gridVisible={gridVisible}
+              wallsVisible={wallsVisible}
               proximityMergingEnabled={proximityMergingEnabled}
               proximityThreshold={proximityThreshold}
-              isPerformanceModeEnabled={isPerformanceModeEnabled}
+              // isPerformanceModeEnabled is not a prop on DrawingCanvas
               onMouseMove={handleMouseMove}
               onWallCreated={handleWallCreated}
               onWallSelected={handleWallSelected}
               onWallDeleted={handleWallDeleted}
-              onGridToggle={handleGridToggle}
+              // onGridToggle is not consumed by DrawingCanvas; grid visibility is controlled via gridVisible prop
               onProximityMergingUpdate={handleProximityMergingUpdate}
               onStatusMessage={setStatusMessage}
               onViewportChange={handleViewportChange}
               onReferenceImageUpdate={handleReferenceImageUpdate}
-              onRenderStatsUpdate={handleRenderStatsUpdate}
+              // onRenderStatsUpdate is not a prop on DrawingCanvas
             />
           </div>
           
@@ -402,6 +410,14 @@ function App() {
               onWallVisibilityChange={handleWallVisibilityChange}
               onWallDelete={handleWallDeleted}
               onSelectionClear={handleSelectionClear}
+              // Layers panel state/handlers
+              hasReferenceImage={referenceImage.hasImage}
+              wallsVisible={wallsVisible}
+              gridVisible={gridVisible}
+              referenceImageVisible={referenceImage.isVisible}
+              onGridToggle={handleGridToggle}
+              onWallsToggle={handleWallsToggle}
+              onReferenceImageToggleVisibility={handleReferenceImageToggleVisibility}
               proximityMergingEnabled={proximityMergingEnabled}
               proximityThreshold={proximityThreshold}
               activeMerges={activeMerges}
