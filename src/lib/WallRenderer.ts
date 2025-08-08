@@ -1,4 +1,5 @@
 import * as PIXI from 'pixi.js'
+import * as martinez from 'martinez-polygon-clipping'
 import type { Wall, Segment, Node, WallTypeString } from './types'
 import { WALL_THICKNESS } from './types'
 import { PerformanceOptimizer, type RenderStats } from './PerformanceOptimizer'
@@ -16,6 +17,64 @@ export class WallRenderer {
 
   constructor() {
     this.performanceOptimizer = new PerformanceOptimizer()
+  }
+
+  // Create join polygons at nodes to achieve straight-edge unions between
+  // adjacent thick segments. This approximates a straight miter by covering
+  // the area between neighboring segment quads instead of using round caps.
+  private fillNodeJoins(
+    wall: Wall,
+    segments: Segment[],
+    nodes: Map<string, Node>,
+    graphics: PIXI.Graphics,
+    half: number
+  ) {
+    // Build adjacency list for wall nodes using provided wall segments only
+    const idToSegment = new Map(segments.map(s => [s.id, s]))
+    const nodeToDirs = new Map<string, Array<{ nx: number; ny: number }>>()
+    wall.segmentIds.forEach(id => {
+      const seg = idToSegment.get(id)
+      if (!seg) return
+      const a = nodes.get(seg.startNodeId)
+      const b = nodes.get(seg.endNodeId)
+      if (!a || !b) return
+      const vx = b.x - a.x
+      const vy = b.y - a.y
+      const len = Math.hypot(vx, vy) || 1
+      const nx = -vy / len
+      const ny = vx / len
+      if (!nodeToDirs.has(a.id)) nodeToDirs.set(a.id, [])
+      if (!nodeToDirs.has(b.id)) nodeToDirs.set(b.id, [])
+      nodeToDirs.get(a.id)!.push({ nx, ny })
+      nodeToDirs.get(b.id)!.push({ nx, ny })
+    })
+
+    nodeToDirs.forEach((dirs, nodeId) => {
+      const n = nodes.get(nodeId)
+      if (!n) return
+      if (dirs.length < 2) return // endpoints need no join
+      // Sort directions by angle for consistent wedge filling
+      const angles = dirs.map(d => Math.atan2(d.ny, d.nx))
+      const idx = angles
+        .map((ang, i) => ({ ang, i }))
+        .sort((a, b) => a.ang - b.ang)
+        .map(o => o.i)
+      const sorted = idx.map(i => dirs[i])
+      for (let i = 0; i < sorted.length; i++) {
+        const d1 = sorted[i]
+        const d2 = sorted[(i + 1) % sorted.length]
+        // Build a small wedge polygon connecting the offsets to bridge quads
+        const p1x = n.x + d1.nx * half
+        const p1y = n.y + d1.ny * half
+        const p2x = n.x + d2.nx * half
+        const p2y = n.y + d2.ny * half
+        graphics
+          .moveTo(n.x, n.y)
+          .lineTo(p1x, p1y)
+          .lineTo(p2x, p2y)
+          .closePath()
+      }
+    })
   }
 
   /**
@@ -38,28 +97,46 @@ export class WallRenderer {
     const graphics = new PIXI.Graphics()
     const style = this.getWallStyle(wall.type)
 
-    // Build polylines through wall segments (handles branches and cycles)
-    const polylines = this.buildOrderedPolylines(wall, segments, nodes)
-
-    polylines.forEach(path => {
-      if (path.length < 2) return
-      graphics
-        .setStrokeStyle({
-          width: wall.thickness,
-          color: style.fillColor,
-          alpha: style.fillAlpha,
-          join: 'miter',
-          miterLimit: 8
+    // Build union of segment quads into one polygon
+    const half = wall.thickness / 2
+    const rings: number[][][] = []
+    for (const seg of segments) {
+      const a = nodes.get(seg.startNodeId)
+      const b = nodes.get(seg.endNodeId)
+      if (!a || !b) continue
+      const vx = b.x - a.x
+      const vy = b.y - a.y
+      const len = Math.hypot(vx, vy) || 1
+      const nx = -vy / len
+      const ny = vx / len
+      const p1 = [a.x + nx * half, a.y + ny * half]
+      const p2 = [b.x + nx * half, b.y + ny * half]
+      const p3 = [b.x - nx * half, b.y - ny * half]
+      const p4 = [a.x - nx * half, a.y - ny * half]
+      rings.push([p1, p2, p3, p4, p1])
+    }
+    let unionResult: any = null
+    for (const r of rings) {
+      const poly = [r]
+      unionResult = unionResult ? martinez.union(unionResult, poly) : poly
+    }
+    graphics.setFillStyle({ color: style.fillColor, alpha: style.fillAlpha })
+    if (unionResult) {
+      const isMulti = Array.isArray(unionResult[0][0][0])
+      const multipoly: number[][][][] = isMulti ? unionResult : [unionResult]
+      multipoly.forEach(polygon => {
+        polygon.forEach(ring => {
+          const [x0, y0] = ring[0]
+          graphics.moveTo(x0, y0)
+          for (let i = 1; i < ring.length; i++) {
+            const [x, y] = ring[i]
+            graphics.lineTo(x, y)
+          }
+          graphics.closePath()
         })
-        .moveTo(path[0].x, path[0].y)
-      for (let i = 1; i < path.length; i++) {
-        graphics.lineTo(path[i].x, path[i].y)
-      }
-      if (path[0].x === path[path.length - 1].x && path[0].y === path[path.length - 1].y) {
-        graphics.closePath()
-      }
-      graphics.stroke()
-    })
+      })
+      graphics.fill()
+    }
 
     // Store graphics reference
     this.wallGraphics.set(wall.id, graphics)
@@ -127,6 +204,36 @@ export class WallRenderer {
           const n = nodes.get(nid)
           if (n) coords.push({ x: n.x, y: n.y })
         })
+
+        // If this path terminates at a high-degree node (branch into trunk),
+        // shorten the endpoint by half thickness so its shell meets the trunk
+        // cleanly without creating an inner wedge.
+        const half = wall.thickness / 2
+        const shortenAtIndex = (idxEnd: number) => {
+          if (coords.length < 2) return
+          const nodeId = path[idxEnd]
+          const deg = (adjacency.get(nodeId) || []).length
+          if (deg <= 2) return
+          const idxPrev = idxEnd === 0 ? 1 : idxEnd - 1
+          const p = coords[idxPrev]
+          const q = coords[idxEnd]
+          const vx = q.x - p.x
+          const vy = q.y - p.y
+          const len = Math.hypot(vx, vy) || 1
+          const nx = vx / len
+          const ny = vy / len
+          // move endpoint from junction towards previous point by half thickness
+          coords[idxEnd] = { x: q.x - nx * half, y: q.y - ny * half }
+        }
+        // Shorten only spur endpoints: one end has degree 1 (free),
+        // the other end attaches to a junction (degree > 2).
+        const startDeg = (adjacency.get(path[0]) || []).length
+        const endDeg = (adjacency.get(path[path.length - 1]) || []).length
+        if (startDeg === 1 && endDeg > 2) {
+          shortenAtIndex(path.length - 1)
+        } else if (endDeg === 1 && startDeg > 2) {
+          shortenAtIndex(0)
+        }
         if (coords.length >= 2) polylines.push(coords)
       }
     }
@@ -286,26 +393,45 @@ export class WallRenderer {
     }
 
     const style = this.getWallStyle(wall.type)
-    const polylines = this.buildOrderedPolylines(wall, segments, nodes)
-    polylines.forEach(path => {
-      if (path.length < 2) return
-      graphics
-        .setStrokeStyle({
-          width: wall.thickness,
-          color: style.fillColor,
-          alpha: style.fillAlpha,
-          join: 'miter',
-          miterLimit: 8
+    const half = wall.thickness / 2
+    const rings2: number[][][] = []
+    for (const seg of segments) {
+      const a = nodes.get(seg.startNodeId)
+      const b = nodes.get(seg.endNodeId)
+      if (!a || !b) continue
+      const vx = b.x - a.x
+      const vy = b.y - a.y
+      const len = Math.hypot(vx, vy) || 1
+      const nx = -vy / len
+      const ny = vx / len
+      const p1 = [a.x + nx * half, a.y + ny * half]
+      const p2 = [b.x + nx * half, b.y + ny * half]
+      const p3 = [b.x - nx * half, b.y - ny * half]
+      const p4 = [a.x - nx * half, a.y - ny * half]
+      rings2.push([p1, p2, p3, p4, p1])
+    }
+    let union2: any = null
+    for (const r of rings2) {
+      const poly = [r]
+      union2 = union2 ? martinez.union(union2, poly) : poly
+    }
+    graphics.setFillStyle({ color: style.fillColor, alpha: style.fillAlpha })
+    if (union2) {
+      const isMulti = Array.isArray(union2[0][0][0])
+      const multipoly: number[][][][] = isMulti ? union2 : [union2]
+      multipoly.forEach(polygon => {
+        polygon.forEach(ring => {
+          const [x0, y0] = ring[0]
+          graphics.moveTo(x0, y0)
+          for (let i = 1; i < ring.length; i++) {
+            const [x, y] = ring[i]
+            graphics.lineTo(x, y)
+          }
+          graphics.closePath()
         })
-        .moveTo(path[0].x, path[0].y)
-      for (let i = 1; i < path.length; i++) {
-        graphics.lineTo(path[i].x, path[i].y)
-      }
-      if (path[0].x === path[path.length - 1].x && path[0].y === path[path.length - 1].y) {
-        graphics.closePath()
-      }
-      graphics.stroke()
-    })
+      })
+      graphics.fill()
+    }
   }
 
   /**

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { WallPropertiesPanel } from './WallPropertiesPanel'
 import { ProximityMergingPanel } from './ProximityMergingPanel'
@@ -6,6 +6,7 @@ import { ReferenceImagePanel } from './ReferenceImagePanel'
 import { ErrorPanel } from './ErrorPanel'
 import { 
   ChevronLeft, 
+  ChevronDown,
   Layers, 
   Settings, 
   Image,
@@ -52,6 +53,7 @@ interface SidebarProps {
   hasReferenceImage?: boolean
   // Visibility states for layer toggles
   wallsVisible?: boolean
+    wallLayerVisibility?: { layout: boolean; zone: boolean; area: boolean }
   gridVisible?: boolean
   referenceImageVisible?: boolean
   referenceImageLocked?: boolean
@@ -74,7 +76,8 @@ interface SidebarProps {
   onReferenceImageFitToCanvas?: (mode: any) => void
   // Layer toggle handlers
   onGridToggle?: () => void
-  onWallsToggle?: () => void
+    onWallsToggle?: () => void
+    onWallLayerVisibilityChange?: (layer: 'layout' | 'zone' | 'area', visible: boolean) => void
   // Error handling props
   errorLog?: any[]
   memoryInfo?: any
@@ -104,6 +107,7 @@ export function Sidebar({
   hasReferenceImage = false,
   // Layer visibility states
   wallsVisible = true,
+    wallLayerVisibility = { layout: true, zone: true, area: true },
   gridVisible = false,
   referenceImageVisible = true,
   referenceImageLocked = true,
@@ -120,6 +124,7 @@ export function Sidebar({
   onReferenceImageFitToCanvas,
   onGridToggle,
   onWallsToggle,
+    onWallLayerVisibilityChange,
   // Error handling props
   errorLog = [],
   memoryInfo = null,
@@ -128,7 +133,43 @@ export function Sidebar({
   onClearErrors
 }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [activePanel, setActivePanel] = useState<SidebarPanel>(null)
+  // Default to Layers panel on load
+  const [activePanel, setActivePanel] = useState<SidebarPanel>('layers')
+  // Collapsible children under Walls
+  const [showWallChildren, setShowWallChildren] = useState(true)
+
+  // Resizable sidebar state
+  const MIN_WIDTH = 220
+  const MAX_WIDTH = 560
+  const [sidebarWidth, setSidebarWidth] = useState<number>(256)
+  const isResizingRef = useRef(false)
+  const startXRef = useRef(0)
+  const startWidthRef = useRef(256)
+
+  const handleResizeStart = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // Only start resize when not collapsed
+    if (isCollapsed) return
+    isResizingRef.current = true
+    startXRef.current = e.clientX
+    startWidthRef.current = sidebarWidth
+    // Add listeners on window to capture drag outside handle
+    const handleMouseMove = (ev: MouseEvent) => {
+      if (!isResizingRef.current) return
+      const delta = startXRef.current - ev.clientX
+      const proposed = startWidthRef.current + delta
+      const next = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, proposed))
+      setSidebarWidth(next)
+    }
+    const handleMouseUp = () => {
+      isResizingRef.current = false
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+      document.body.classList.remove('select-none', 'cursor-col-resize')
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    document.body.classList.add('select-none', 'cursor-col-resize')
+  }, [isCollapsed, sidebarWidth])
 
   const togglePanel = (panel: SidebarPanel) => {
     if (activePanel === panel) {
@@ -149,11 +190,27 @@ export function Sidebar({
   }
 
   return (
-    <div className={cn(
-      'flex h-full border-l bg-background transition-all duration-200',
-      isCollapsed ? 'w-12' : 'w-64',
-      className
-    )}>
+    <div
+      className={cn(
+        'relative flex h-full border-l bg-background transition-all duration-200',
+        isCollapsed ? 'w-12' : '',
+        className
+      )}
+      style={!isCollapsed ? { width: `${sidebarWidth}px` } : undefined}
+    >
+      {/* Resize handle (left edge) */}
+      {!isCollapsed && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          onMouseDown={handleResizeStart}
+          className={cn(
+            'absolute left-0 top-0 h-full w-1 cursor-col-resize',
+            'bg-transparent hover:bg-border'
+          )}
+          title="Resize sidebar"
+        />
+      )}
       {/* Icon Bar */}
       <div className="flex flex-col w-12 border-r bg-muted/30">
         <div className="flex flex-col gap-1 p-2">
@@ -231,22 +288,91 @@ export function Sidebar({
             <div>
               <h3 className="font-semibold mb-3">Layers</h3>
               <div className="space-y-2">
-                <div className="flex items-center justify-between p-2 rounded border">
-                  <span className="text-sm">Walls</span>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-6 w-6 p-0"
-                    onClick={onWallsToggle}
-                    title={wallsVisible ? 'Hide walls' : 'Show walls'}
-                    aria-label={wallsVisible ? 'Hide walls' : 'Show walls'}
-                  >
-                    {wallsVisible ? (
-                      <Eye className="h-3 w-3" />
-                    ) : (
-                      <EyeOff className="h-3 w-3" />
-                    )}
-                  </Button>
+                <div className="p-2 rounded border">
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setShowWallChildren(prev => !prev)}
+                      className="flex items-center gap-1 text-sm font-medium hover:opacity-80"
+                      aria-expanded={showWallChildren}
+                      aria-controls="walls-children"
+                    >
+                      <ChevronDown className={cn('h-4 w-4 transition-transform', { 'rotate-[-90deg]': !showWallChildren })} />
+                      <span>Walls</span>
+                    </button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 w-6 p-0"
+                      onClick={onWallsToggle}
+                      title={wallsVisible ? 'Hide all walls' : 'Show all walls'}
+                      aria-label={wallsVisible ? 'Hide all walls' : 'Show all walls'}
+                    >
+                      {wallsVisible ? (
+                        <Eye className="h-3 w-3" />
+                      ) : (
+                        <EyeOff className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </div>
+                  {showWallChildren && (
+                  <div id="walls-children" className="mt-2 space-y-1">
+                    <div className="flex items-center justify-between rounded px-2 py-1">
+                      <span className="text-xs text-muted-foreground">Layout</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => onWallLayerVisibilityChange?.('layout', !(wallLayerVisibility?.layout ?? true))}
+                        title={(wallLayerVisibility?.layout ?? true) ? 'Hide layout walls' : 'Show layout walls'}
+                        aria-label={(wallLayerVisibility?.layout ?? true) ? 'Hide layout walls' : 'Show layout walls'}
+                        disabled={!wallsVisible}
+                      >
+                        {(wallLayerVisibility?.layout ?? true) ? (
+                          <Eye className="h-3 w-3" />
+                        ) : (
+                          <EyeOff className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between rounded px-2 py-1">
+                      <span className="text-xs text-muted-foreground">Zone</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => onWallLayerVisibilityChange?.('zone', !(wallLayerVisibility?.zone ?? true))}
+                        title={(wallLayerVisibility?.zone ?? true) ? 'Hide zone walls' : 'Show zone walls'}
+                        aria-label={(wallLayerVisibility?.zone ?? true) ? 'Hide zone walls' : 'Show zone walls'}
+                        disabled={!wallsVisible}
+                      >
+                        {(wallLayerVisibility?.zone ?? true) ? (
+                          <Eye className="h-3 w-3" />
+                        ) : (
+                          <EyeOff className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between rounded px-2 py-1">
+                      <span className="text-xs text-muted-foreground">Area</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => onWallLayerVisibilityChange?.('area', !(wallLayerVisibility?.area ?? true))}
+                        title={(wallLayerVisibility?.area ?? true) ? 'Hide area walls' : 'Show area walls'}
+                        aria-label={(wallLayerVisibility?.area ?? true) ? 'Hide area walls' : 'Show area walls'}
+                        disabled={!wallsVisible}
+                      >
+                        {(wallLayerVisibility?.area ?? true) ? (
+                          <Eye className="h-3 w-3" />
+                        ) : (
+                          <EyeOff className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  )}
                 </div>
                 <div className="flex items-center justify-between p-2 rounded border">
                   <span className="text-sm">Grid</span>

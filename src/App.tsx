@@ -47,6 +47,11 @@ function App() {
   })
   // Walls layer visibility (separate from per-wall visibility)
   const [wallsVisible, setWallsVisible] = useState(true)
+  const [wallLayerVisibility, setWallLayerVisibility] = useState<{ layout: boolean; zone: boolean; area: boolean }>({
+    layout: true,
+    zone: true,
+    area: true
+  })
   
   // Canvas state
   const [mouseCoordinates, setMouseCoordinates] = useState({ x: 0, y: 0 })
@@ -123,6 +128,11 @@ function App() {
     setWallsVisible(prev => !prev)
     setStatusMessage(wallsVisible ? 'Walls hidden' : 'Walls visible')
   }, [wallsVisible])
+
+  const handleWallLayerVisibilityChange = useCallback((layer: 'layout' | 'zone' | 'area', visible: boolean) => {
+    setWallLayerVisibility(prev => ({ ...prev, [layer]: visible }))
+    setStatusMessage(`${visible ? 'Shown' : 'Hidden'} ${layer} walls`)
+  }, [])
 
   // Viewport handlers - wrapped in useCallback to prevent infinite re-renders
   const handleViewportChange = useCallback((newViewport: { zoom: number; panX: number; panY: number }) => {
@@ -385,6 +395,7 @@ function App() {
               activeTool={activeTool}
               gridVisible={gridVisible}
               wallsVisible={wallsVisible}
+              wallLayerVisibility={wallLayerVisibility}
               proximityMergingEnabled={proximityMergingEnabled}
               proximityThreshold={proximityThreshold}
               // isPerformanceModeEnabled is not a prop on DrawingCanvas
@@ -413,11 +424,13 @@ function App() {
               // Layers panel state/handlers
               hasReferenceImage={referenceImage.hasImage}
               wallsVisible={wallsVisible}
+              wallLayerVisibility={wallLayerVisibility}
               gridVisible={gridVisible}
               referenceImageVisible={referenceImage.isVisible}
               referenceImageLocked={referenceImage.isLocked}
               onGridToggle={handleGridToggle}
               onWallsToggle={handleWallsToggle}
+              onWallLayerVisibilityChange={handleWallLayerVisibilityChange}
               onReferenceImageToggleVisibility={handleReferenceImageToggleVisibility}
               onReferenceImageToggleLock={handleReferenceImageToggleLock}
               proximityMergingEnabled={proximityMergingEnabled}

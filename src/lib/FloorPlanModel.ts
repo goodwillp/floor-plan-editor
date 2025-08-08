@@ -834,6 +834,126 @@ export class FloorPlanModel {
         return Array.from(this.walls.values());
     }
 
+  /**
+   * Get all segments for a wall
+   */
+  getSegmentsForWall(wallId: string): Segment[] {
+    const wall = this.walls.get(wallId)
+    if (!wall) return []
+    return wall.segmentIds
+      .map(id => this.segments.get(id))
+      .filter((s): s is Segment => !!s)
+  }
+
+  /**
+   * Find wall IDs (excluding the provided wall, unless included) that share
+   * any node with the provided segment IDs
+   */
+  findWallsSharingNodesWithSegments(segmentIds: string[], excludeWallId?: string): Set<string> {
+    const result = new Set<string>()
+    const nodeIds = new Set<string>()
+    segmentIds.forEach(id => {
+      const s = this.segments.get(id)
+      if (s) {
+        nodeIds.add(s.startNodeId)
+        nodeIds.add(s.endNodeId)
+      }
+    })
+    nodeIds.forEach(nid => {
+      const node = this.nodes.get(nid)
+      if (!node) return
+      node.connectedSegments.forEach(segId => {
+        const seg = this.segments.get(segId)
+        if (seg?.wallId && seg.wallId !== excludeWallId) result.add(seg.wallId)
+      })
+    })
+    return result
+  }
+
+  /**
+   * Merge multiple walls into a target wall. All segments are reassigned to the
+   * target; merged walls are deleted. The wall type of the target is preserved.
+   */
+  mergeWalls(targetWallId: string, otherWallIds: string[]): boolean {
+    const target = this.walls.get(targetWallId)
+    if (!target) return false
+    let changed = false
+    for (const otherId of otherWallIds) {
+      if (otherId === targetWallId) continue
+      const other = this.walls.get(otherId)
+      if (!other) continue
+      // Only merge same-type walls to preserve semantics
+      if (other.type !== target.type) continue
+      other.segmentIds.forEach(segId => {
+        const seg = this.segments.get(segId)
+        if (seg) {
+          seg.wallId = targetWallId
+          if (!target.segmentIds.includes(segId)) target.segmentIds.push(segId)
+        }
+      })
+      this.walls.delete(otherId)
+      changed = true
+    }
+    if (changed) target.updatedAt = new Date()
+    return changed
+  }
+
+  /**
+   * Merge all walls of a given type that are connected through shared nodes.
+   * This guarantees a single wall entity for each connected component.
+   */
+  unifyWallsByConnectivityOfType(wallType: WallTypeString): void {
+    // Build union-find over wall ids of the given type
+    const parents = new Map<string, string>()
+    const find = (x: string): string => {
+      let p = parents.get(x) || x
+      if (p !== x) {
+        p = find(p)
+        parents.set(x, p)
+      }
+      return p
+    }
+    const union = (a: string, b: string) => {
+      const ra = find(a)
+      const rb = find(b)
+      if (ra !== rb) parents.set(ra, rb)
+    }
+
+    const wallsOfType = Array.from(this.walls.values()).filter(w => w.type === wallType)
+    wallsOfType.forEach(w => parents.set(w.id, w.id))
+
+    // For each node, union all walls that touch it
+    this.nodes.forEach(node => {
+      const touchingWalls = new Set<string>()
+      node.connectedSegments.forEach(segId => {
+        const seg = this.segments.get(segId)
+        if (seg?.wallId) {
+          const w = this.walls.get(seg.wallId)
+          if (w && w.type === wallType) touchingWalls.add(w.id)
+        }
+      })
+      const ids = Array.from(touchingWalls)
+      for (let i = 1; i < ids.length; i++) {
+        union(ids[0], ids[i])
+      }
+    })
+
+    // Group walls by root
+    const groups = new Map<string, string[]>()
+    wallsOfType.forEach(w => {
+      const r = find(w.id)
+      if (!groups.has(r)) groups.set(r, [])
+      groups.get(r)!.push(w.id)
+    })
+
+    // For each group, merge into the first wall id
+    groups.forEach(ids => {
+      if (ids.length <= 1) return
+      const [target, ...others] = ids
+      this.mergeWalls(target, others)
+    })
+  }
+
     /**
      * Update wall properties
      */

@@ -231,17 +231,24 @@ export class DrawingService {
         }
       }
 
-      if (filteredIds.length > 0 && touchingWallIds.size === 1) {
-        const targetWallId = Array.from(touchingWallIds)[0]
-        const targetWall = (this.model as any).getWall?.(targetWallId)
-        if (targetWall && targetWall.type === this.activeWallType) {
-          (this.model as any).addSegmentsToWall?.(targetWallId, filteredIds)
-          this.isDrawing = false
-          this.currentPoints = []
-          if (intersectionModifications.length > 0) {
-            console.log(`Wall drawing merged into existing wall (${targetWallId}) with ${intersectionModifications.length} intersection modifications`)
+      if (filteredIds.length > 0) {
+        // Prefer merging into existing continuous same-type wall(s) that share nodes
+        const neighborWalls = (this.model as any).findWallsSharingNodesWithSegments?.(filteredIds)
+        if (neighborWalls && neighborWalls.size >= 1) {
+          const targetWallId: string = Array.from(neighborWalls)[0] as string
+          const targetWall = (this.model as any).getWall?.(targetWallId)
+          if (targetWall && targetWall.type === this.activeWallType) {
+            // Create a temporary wall to hold the new segments, then merge
+            const newWall = this.model.createWall(this.activeWallType, filteredIds)
+            ;(this.model as any).mergeWalls?.(targetWallId, [newWall.id, ...Array.from(neighborWalls).filter(id => id !== targetWallId)])
+            ;(this.model as any).unifyWallsByConnectivityOfType?.(this.activeWallType)
+            this.isDrawing = false
+            this.currentPoints = []
+            if (intersectionModifications.length > 0) {
+              console.log(`Wall drawing merged into existing wall (${targetWallId}) with ${intersectionModifications.length} intersection modifications`)
+            }
+            return targetWallId
           }
-          return targetWallId
         }
       }
 

@@ -19,6 +19,7 @@ interface DrawingCanvasProps {
   activeTool: Tool
   gridVisible?: boolean
   wallsVisible?: boolean
+  wallLayerVisibility?: { layout: boolean; zone: boolean; area: boolean }
   proximityMergingEnabled?: boolean
   proximityThreshold?: number
   onMouseMove?: (coordinates: { x: number; y: number }) => void
@@ -43,6 +44,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   activeTool,
   gridVisible = false,
   wallsVisible = true,
+  wallLayerVisibility = { layout: true, zone: true, area: true },
   proximityMergingEnabled = false,
   proximityThreshold = 15,
   onMouseMove,
@@ -352,6 +354,29 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       onStatusMessage?.('Failed to initialize canvas')
     }
   }, [onStatusMessage, handleRenderingError])
+
+  // Helper: render or remove walls based on layer visibility
+  const syncWallVisibility = useCallback(() => {
+    if (!wallRendererRef.current || !layers) return
+    const nodes = new Map()
+    modelRef.current.getAllNodes().forEach(node => nodes.set(node.id, node))
+    modelRef.current.getAllWalls().forEach(wall => {
+      const typeVisible = wallsVisible && (wallLayerVisibility as any)[wall.type] !== false
+      const existingSegments = wall.segmentIds
+        .map(id => modelRef.current.getSegment(id))
+        .filter(Boolean) as any[]
+      if (typeVisible) {
+        wallRendererRef.current!.renderWall(wall, existingSegments, nodes, layers.wall)
+      } else {
+        wallRendererRef.current!.removeWallGraphics(wall.id, layers.wall)
+      }
+    })
+  }, [layers, wallsVisible, wallLayerVisibility])
+
+  // React to parent or per-type visibility changes
+  useEffect(() => {
+    syncWallVisibility()
+  }, [syncWallVisibility])
 
   // Handle canvas clicks based on active tool
   const handleCanvasClick = useCallback((point: Point) => {
