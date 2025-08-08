@@ -81,6 +81,7 @@ export class ViewportService {
   private config: ViewportConfig
   private state: ViewportState
   private pixiApp: PIXI.Application | null = null
+  private targetContainer: PIXI.Container | null = null
   private eventListeners: Map<ViewportEvent, Set<(data: ViewportEventData) => void>> = new Map()
   private animationId: number | null = null
   private targetState: Partial<ViewportState> | null = null
@@ -116,6 +117,14 @@ export class ViewportService {
   setPixiApp(app: PIXI.Application): void {
     this.pixiApp = app
     this.updateCanvasSize(app.screen.width, app.screen.height)
+  }
+
+  /**
+   * Set the container to which viewport transforms should be applied
+   */
+  setTargetContainer(container: PIXI.Container): void {
+    this.targetContainer = container
+    this.applyViewportTransform()
   }
 
   /**
@@ -532,13 +541,10 @@ export class ViewportService {
    * Apply viewport transform to PixiJS stage
    */
   private applyViewportTransform(): void {
-    if (!this.pixiApp || !this.pixiApp.stage) return
-    
-    const stage = this.pixiApp.stage
-    if (stage && stage.scale && stage.position) {
-      stage.scale.set(this.state.zoom)
-      stage.position.set(this.state.panX, this.state.panY)
-    }
+    const container = this.targetContainer || this.pixiApp?.stage
+    if (!container) return
+    ;(container as any).scale?.set(this.state.zoom)
+    ;(container as any).position?.set(this.state.panX, this.state.panY)
   }
 
   /**

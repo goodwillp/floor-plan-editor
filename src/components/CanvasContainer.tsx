@@ -52,6 +52,17 @@ export function CanvasContainer({
   const [isInitialized, setIsInitialized] = useState(false)
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 })
+  const lastClickTimeRef = useRef(0)
+  // Keep latest handlers to avoid stale closures in Pixi/DOM listeners
+  const onMouseMoveRef = useRef<typeof onMouseMove | null>(null)
+  const onCanvasClickRef = useRef<typeof onCanvasClick | null>(null)
+  const onCanvasDoubleClickRef = useRef<typeof onCanvasDoubleClick | null>(null)
+  const onCanvasRightClickRef = useRef<typeof onCanvasRightClick | null>(null)
+
+  useEffect(() => { onMouseMoveRef.current = onMouseMove }, [onMouseMove])
+  useEffect(() => { onCanvasClickRef.current = onCanvasClick }, [onCanvasClick])
+  useEffect(() => { onCanvasDoubleClickRef.current = onCanvasDoubleClick }, [onCanvasDoubleClick])
+  useEffect(() => { onCanvasRightClickRef.current = onCanvasRightClick }, [onCanvasRightClick])
 
   // Initialize viewport management
   const viewport = useViewport({
@@ -247,56 +258,63 @@ export function CanvasContainer({
     app.stage.eventMode = 'static'
     app.stage.hitArea = app.screen
     
-    // Mouse move event
-    app.stage.on('pointermove', (event: PIXI.FederatedPointerEvent) => {
-      const native: any = (event as any).originalEvent || (event as any).nativeEvent
-      const position = {
-        x: Math.round(native?.pageX ?? event.global.x),
-        y: Math.round(native?.pageY ?? event.global.y)
+    // Use native canvas events to avoid Pixi hitArea/transform issues
+    const canvas = app.canvas as HTMLCanvasElement
+    const handlePointerMove = (ev: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect()
+      const screenX = Math.round(ev.clientX - rect.left)
+      const screenY = Math.round(ev.clientY - rect.top)
+      const world = viewport.screenToWorld(screenX, screenY)
+      setMousePosition(world)
+      onMouseMoveRef.current?.(world)
+      // Bridge to viewport panning handler
+      viewport.handleMouseMove(ev as unknown as MouseEvent)
+    }
+    const handlePointerDown = (ev: PointerEvent) => {
+      ev.preventDefault()
+      const rect = canvas.getBoundingClientRect()
+      const screenX = Math.round(ev.clientX - rect.left)
+      const screenY = Math.round(ev.clientY - rect.top)
+      const worldPoint: Point = viewport.screenToWorld(screenX, screenY)
+      console.log('🔍 Canvas pointerdown', { worldPoint, button: ev.button })
+      const now = performance.now()
+      const isDouble = now - lastClickTimeRef.current < 300
+      lastClickTimeRef.current = now
+      // Bridge to viewport panning handler first
+      viewport.handleMouseDown(ev as unknown as MouseEvent)
+      // Only treat left button as a canvas click; skip middle/right for click logic
+      if (ev.button === 0) {
+        if (isDouble) {
+          console.log('🔍 Canvas double click', { worldPoint })
+          onCanvasDoubleClickRef.current?.(worldPoint)
+        } else {
+          onCanvasClickRef.current?.(worldPoint)
+        }
+      } else if (ev.button === 2) {
+        onCanvasRightClickRef.current?.(worldPoint)
       }
-      setMousePosition(position)
-      onMouseMove?.(position)
-    })
-
-    // Click events for drawing
-    app.stage.on('pointerdown', (event: PIXI.FederatedPointerEvent) => {
-      // Prevent native drag of the canvas itself
-      event.preventDefault()
-      const native: any = (event as any).originalEvent || (event as any).nativeEvent
-      const point: Point = {
-        x: Math.round(native?.pageX ?? event.global.x),
-        y: Math.round(native?.pageY ?? event.global.y)
-      }
-      
-      if (event.detail === 2) {
-        // Double click
-        onCanvasDoubleClick?.(point)
-      } else if (event.button === 2) {
-        // Right click
-        onCanvasRightClick?.(point)
-      } else {
-        // Left click
-        onCanvasClick?.(point)
-      }
-    })
+    }
+    const handlePointerUp = (ev: PointerEvent) => {
+      viewport.handleMouseUp(ev as unknown as MouseEvent)
+    }
+    canvas.addEventListener('pointermove', handlePointerMove)
+    canvas.addEventListener('pointerdown', handlePointerDown, { passive: false })
+    canvas.addEventListener('pointerup', handlePointerUp)
 
     // Prevent context menu on right click
-    app.canvas.addEventListener('contextmenu', (e) => {
+    canvas.addEventListener('contextmenu', (e) => {
       e.preventDefault()
     })
     
     // Add viewport event handlers
-    app.canvas.addEventListener('wheel', viewport.handleWheel, { passive: false })
-    app.canvas.addEventListener('mousedown', viewport.handleMouseDown)
-    app.canvas.addEventListener('mousemove', viewport.handleMouseMove)
-    app.canvas.addEventListener('mouseup', viewport.handleMouseUp)
+    canvas.addEventListener('wheel', viewport.handleWheel, { passive: false })
     
     // Cleanup viewport event handlers
     return () => {
-      app.canvas.removeEventListener('wheel', viewport.handleWheel)
-      app.canvas.removeEventListener('mousedown', viewport.handleMouseDown)
-      app.canvas.removeEventListener('mousemove', viewport.handleMouseMove)
-      app.canvas.removeEventListener('mouseup', viewport.handleMouseUp)
+      canvas.removeEventListener('pointermove', handlePointerMove)
+      canvas.removeEventListener('pointerdown', handlePointerDown)
+      canvas.removeEventListener('pointerup', handlePointerUp)
+      canvas.removeEventListener('wheel', viewport.handleWheel)
     }
   }, [onMouseMove, onCanvasClick, onCanvasDoubleClick, onCanvasRightClick, viewport.handleWheel, viewport.handleMouseDown, viewport.handleMouseMove, viewport.handleMouseUp])
 
@@ -402,7 +420,7 @@ export function CanvasContainer({
     >
       {/* Loading indicator while PixiJS initializes */}
       {!isInitialized && (
-        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground pointer-events-none">
           <div className="text-center">
             <div className="text-lg font-medium mb-2">Initializing Canvas...</div>
             <div className="text-sm opacity-60">Setting up PixiJS renderer</div>
@@ -412,7 +430,7 @@ export function CanvasContainer({
       
       {/* Debug info overlay (can be removed in production) */}
       {isInitialized && (
-        <div className="absolute top-2 left-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
+        <div className="absolute top-2 left-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded pointer-events-none">
           Mouse: {mousePosition.x}, {mousePosition.y} | PixiJS Ready
         </div>
       )}

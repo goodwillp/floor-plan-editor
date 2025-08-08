@@ -356,8 +356,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   // Handle canvas clicks based on active tool
   const handleCanvasClick = useCallback((point: Point) => {
     try {
-      // Coordinates coming from CanvasContainer's stage pointer events are already in world space
+      // Coordinates from CanvasContainer are world space
       const worldPoint = point
+      console.log('🎯 handleCanvasClick', { activeTool, isDrawing, worldPoint })
       if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
         console.log('🎯 Canvas click', { worldPoint, hasImage: referenceImage.hasImage, isLocked: referenceImage.isLocked })
       }
@@ -384,10 +385,12 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
         if (!isDrawing) {
           // Start new drawing
           startDrawing(snappedPoint)
+          console.log('🧱 startDrawing', { snappedPoint, activeWallType })
           onStatusMessage?.(`Started drawing ${activeWallType} wall${gridIsVisible ? ' (grid snap)' : ''}`)
         } else {
           // Add point to current drawing
           addPoint(snappedPoint)
+          console.log('➕ addPoint', { snappedPoint })
           const length = getCurrentDrawingLength()
           onStatusMessage?.(`Drawing length: ${Math.round(length)}px${gridIsVisible ? ' (grid snap)' : ''}`)
         }
