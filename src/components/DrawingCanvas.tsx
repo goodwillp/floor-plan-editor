@@ -15,7 +15,7 @@ import * as PIXI from 'pixi.js'
 
 interface DrawingCanvasProps {
   className?: string
-  activeWallType: WallTypeString
+  activeWallType: WallTypeString | null
   activeTool: Tool
   gridVisible?: boolean
   wallsVisible?: boolean
@@ -74,7 +74,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   } = useDrawing({
     model: modelRef.current,
     layers,
-    activeWallType,
+    activeWallType: activeWallType ?? 'layout',
     isDrawingMode: activeTool === 'draw'
   })
 

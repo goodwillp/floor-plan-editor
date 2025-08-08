@@ -12,7 +12,7 @@ import type { WallTypeString } from '@/lib/types'
 export type Tool = 'select' | 'draw' | 'delete'
 
 interface ToolPaletteProps {
-  activeWallType: WallTypeString
+  activeWallType: WallTypeString | null
   activeTool: Tool
   gridVisible: boolean
   // Zoom controls
@@ -24,7 +24,7 @@ interface ToolPaletteProps {
   hasReferenceImage?: boolean
   referenceImageLocked?: boolean
   referenceImageVisible?: boolean
-  onWallTypeChange: (type: WallTypeString) => void
+  onWallTypeChange: (type: WallTypeString | null) => void
   onToolChange: (tool: Tool) => void
   onGridToggle: () => void
   onReferenceImageLoad?: (file: File) => Promise<void>
@@ -60,9 +60,9 @@ export function ToolPalette({
   onReferenceImageToggleVisibility
 }: ToolPaletteProps) {
   // Create stable handlers to prevent infinite re-renders
-  const handleLayoutWallClick = React.useCallback(() => onWallTypeChange('layout'), [onWallTypeChange])
-  const handleZoneWallClick = React.useCallback(() => onWallTypeChange('zone'), [onWallTypeChange])
-  const handleAreaWallClick = React.useCallback(() => onWallTypeChange('area'), [onWallTypeChange])
+  const handleLayoutWallClick = React.useCallback(() => onWallTypeChange(activeWallType === 'layout' ? null : 'layout'), [onWallTypeChange, activeWallType])
+  const handleZoneWallClick = React.useCallback(() => onWallTypeChange(activeWallType === 'zone' ? null : 'zone'), [onWallTypeChange, activeWallType])
+  const handleAreaWallClick = React.useCallback(() => onWallTypeChange(activeWallType === 'area' ? null : 'area'), [onWallTypeChange, activeWallType])
   
   const handleSelectToolClick = React.useCallback(() => onToolChange('select'), [onToolChange])
   const handleDrawToolClick = React.useCallback(() => onToolChange('draw'), [onToolChange])

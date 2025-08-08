@@ -15,7 +15,7 @@ import { getWebGLInfo } from '@/lib/webgl-error-handler'
 
 function App() {
   // Tool state
-  const [activeWallType, setActiveWallType] = useState<WallTypeString>('layout')
+  const [activeWallType, setActiveWallType] = useState<WallTypeString | null>('layout')
   const [activeTool, setActiveTool] = useState<Tool>('select')
   const [gridVisible, setGridVisible] = useState(false)
   
@@ -104,9 +104,9 @@ function App() {
   }, [])
 
   // Tool handlers - wrapped in useCallback to prevent infinite re-renders
-  const handleActiveWallTypeChange = useCallback((type: WallTypeString) => {
+  const handleActiveWallTypeChange = useCallback((type: WallTypeString | null) => {
     setActiveWallType(type)
-    setStatusMessage(`Selected ${type} wall type`)
+    setStatusMessage(type ? `Selected ${type} wall type` : 'Wall type cleared')
   }, [])
 
   const handleToolChange = useCallback((tool: Tool) => {
