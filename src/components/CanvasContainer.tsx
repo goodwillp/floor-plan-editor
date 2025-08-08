@@ -134,11 +134,16 @@ export function CanvasContainer({
 
       // Set layer z-indices and add to stage
       layers.background.zIndex = 0
-      layers.reference.zIndex = 10
-      layers.grid.zIndex = 20
+      // Ensure reference layer is above grid for reliable pointer hit and cursor
+      layers.grid.zIndex = 10
+      layers.reference.zIndex = 20
       layers.wall.zIndex = 30
       layers.selection.zIndex = 50
       layers.ui.zIndex = 60
+
+      // Make grid layer explicitly non-interactive so it never captures pointer
+      ;(layers.grid as any).eventMode = 'none'
+      ;(layers.grid as any).interactiveChildren = false
 
       // Add layers to stage in order
       app.stage.addChild(layers.background)
@@ -244,9 +249,10 @@ export function CanvasContainer({
     
     // Mouse move event
     app.stage.on('pointermove', (event: PIXI.FederatedPointerEvent) => {
+      const native: any = (event as any).originalEvent || (event as any).nativeEvent
       const position = {
-        x: Math.round(event.global.x),
-        y: Math.round(event.global.y)
+        x: Math.round(native?.pageX ?? event.global.x),
+        y: Math.round(native?.pageY ?? event.global.y)
       }
       setMousePosition(position)
       onMouseMove?.(position)
@@ -256,9 +262,10 @@ export function CanvasContainer({
     app.stage.on('pointerdown', (event: PIXI.FederatedPointerEvent) => {
       // Prevent native drag of the canvas itself
       event.preventDefault()
+      const native: any = (event as any).originalEvent || (event as any).nativeEvent
       const point: Point = {
-        x: Math.round(event.global.x),
-        y: Math.round(event.global.y)
+        x: Math.round(native?.pageX ?? event.global.x),
+        y: Math.round(native?.pageY ?? event.global.y)
       }
       
       if (event.detail === 2) {

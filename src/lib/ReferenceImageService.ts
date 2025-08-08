@@ -89,6 +89,10 @@ export class ReferenceImageService {
   private isDragging = false
   private dragStartPos = { x: 0, y: 0 }
   private dragStartImagePos = { x: 0, y: 0 }
+  private dragStartLocalPos = { x: 0, y: 0 }
+  private preDragConfig: ReferenceImageConfig | null = null
+  private _debugFrame: number = 0
+  private pointerCapture: { el: HTMLElement; id: number } | null = null
 
   constructor(config: ReferenceImageConfig = DEFAULT_IMAGE_CONFIG) {
     this.config = { ...config }
@@ -519,6 +523,8 @@ export class ReferenceImageService {
       // Draw above grid by default; parent container ordering decides cross-layer
       this.selectionOverlay.zIndex = 1000
       this.selectionOverlay.visible = false
+      ;(this.selectionOverlay as any).eventMode = 'none'
+      ;(this.selectionOverlay as any).interactiveChildren = false
       const parent = this.overlayContainer ?? this.container!
       parent.addChild(this.selectionOverlay)
       if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
@@ -548,6 +554,13 @@ export class ReferenceImageService {
         console.log('📐 selection overlay updated', b)
       }
     }
+  }
+
+  /** Ensure sprite hitArea reflects current texture size for reliable hit testing */
+  private updateHitArea(): void {
+    if (!this.imageSprite || !this.imageTexture) return
+    // Hit area in local space; world transform (scale/position) is applied by Pixi during hit test
+    this.imageSprite.hitArea = new PIXI.Rectangle(0, 0, this.imageTexture.width, this.imageTexture.height)
   }
 
   /**
@@ -643,6 +656,7 @@ export class ReferenceImageService {
     this.imageSprite.zIndex = 0
     // Keep overlay in sync
     this.updateSelectionOverlay()
+    this.updateHitArea()
     if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
       console.log('⚙️ applyConfiguration', { config: this.config })
     }
@@ -657,49 +671,121 @@ export class ReferenceImageService {
     // Dynamic so interactive bounds update as the sprite moves
     this.imageSprite.eventMode = 'dynamic'
     this.imageSprite.cursor = this.config.locked ? 'default' : 'move'
+    this.imageSprite.interactiveChildren = false
+    this.updateHitArea()
+    // Helpful hover logs and cursor updates
+    this.imageSprite.on('pointerover', () => {
+      if (!this.config.locked) this.imageSprite!.cursor = 'move'
+      if ((globalThis as any).DEBUG_REFERENCE_IMAGE) console.log('🖱️ sprite pointerover')
+    })
+    this.imageSprite.on('pointerout', () => {
+      this.imageSprite!.cursor = this.config.locked ? 'default' : 'move'
+      if ((globalThis as any).DEBUG_REFERENCE_IMAGE) console.log('🖱️ sprite pointerout')
+    })
+    this.imageSprite.cursor = this.config.locked ? 'default' : 'move'
     // Attach sprite-level pointer handlers for reliable dragging
     const sprite = this.imageSprite
     const onPointerDown = (e: PIXI.FederatedPointerEvent) => {
       if (this.config.locked) return
       if (e.button !== 0) return
-      const gx = Math.round(e.globalX ?? e.global.x)
-      const gy = Math.round(e.globalY ?? e.global.y)
-      const bounds = this.getImageBounds()
-      if (!bounds) return
-      // Loosen hit test to tolerant small coordinate drift at edges
-      const margin = 2
-      if (gx < bounds.x - margin || gx > bounds.x + bounds.width + margin || gy < bounds.y - margin || gy > bounds.y + bounds.height + margin) return
+      // Use Pixi's world coordinates consistently for start and move
+      const gx = e.global.x
+      const gy = e.global.y
       this.isDragging = true
-      this.dragStartPos = { x: gx, y: gy }
+      this.preDragConfig = { ...this.config }
+      this.dragStartPos = { x: Math.round(gx), y: Math.round(gy) }
       this.dragStartImagePos = { x: this.config.x, y: this.config.y }
+      // Pointer position in parent's local space (immune to zoom/pan)
+      const parent = this.imageSprite!.parent as any
+      const inv = parent?.worldTransform
+      if (inv && typeof inv.applyInverse === 'function') {
+        const localStart = inv.applyInverse({ x: gx, y: gy })
+        this.dragStartLocalPos = { x: localStart.x, y: localStart.y }
+      } else {
+        this.dragStartLocalPos = { x: gx, y: gy }
+      }
+      this.imageSprite!.cursor = 'grabbing'
       if (this.selectionOverlay) {
         this.selectionOverlay.visible = true
         this.updateSelectionOverlay()
       }
       e.stopPropagation()
       if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
-        console.log('🖱️ sprite pointerdown', { gx, gy })
+        console.log('🖱️ sprite pointerdown', { gx, gy, dragStartImagePos: this.dragStartImagePos, config: { ...this.config } })
+      }
+      // Pointer capture (especially for Firefox) so we continue to receive move/up outside the canvas
+      try {
+        const native: any = (e as any).originalEvent || (e as any).nativeEvent
+        const pid: number | undefined = native?.pointerId
+        const targetEl: HTMLElement | null = (native?.target as HTMLElement) || (document.querySelector('canvas') as HTMLElement)
+        if (pid != null && targetEl && (targetEl as any).setPointerCapture) {
+          ;(targetEl as any).setPointerCapture(pid)
+          this.pointerCapture = { el: targetEl, id: pid }
+          if ((globalThis as any).DEBUG_REFERENCE_IMAGE) console.log('📌 pointer capture set', { pid })
+        }
+      } catch {
+        // ignore
       }
     }
     // Use global events so dragging continues even when the cursor leaves the sprite
     const onPointerMove = (e: PIXI.FederatedPointerEvent) => {
       if (!this.isDragging || this.config.locked) return
-      const gx = Math.round(e.globalX ?? e.global.x)
-      const gy = Math.round(e.globalY ?? e.global.y)
-      const deltaX = gx - this.dragStartPos.x
-      const deltaY = gy - this.dragStartPos.y
-      this.setPosition(this.dragStartImagePos.x + deltaX, this.dragStartImagePos.y + deltaY)
-      this.updateSelectionOverlay()
+      const gx = e.global.x
+      const gy = e.global.y
+      // Convert current pointer to parent's local space and diff from start
+      const parent = this.imageSprite!.parent as any
+      const inv = parent?.worldTransform
+      let deltaX = gx - this.dragStartPos.x
+      let deltaY = gy - this.dragStartPos.y
+      if (inv && typeof inv.applyInverse === 'function') {
+        const localNow = inv.applyInverse({ x: gx, y: gy })
+        deltaX = localNow.x - this.dragStartLocalPos.x
+        deltaY = localNow.y - this.dragStartLocalPos.y
+      }
+      // Clamp to a large safe range to avoid numeric edge issues
+      const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
+      const newX = clamp(this.dragStartImagePos.x + deltaX, -1000000, 1000000)
+      const newY = clamp(this.dragStartImagePos.y + deltaY, -1000000, 1000000)
+      // Directly mutate sprite and config to avoid per-frame event storms
+      if (this.imageSprite) this.imageSprite.position.set(newX, newY)
+      this.config.x = newX
+      this.config.y = newY
+      // Avoid excessive redraws; update overlay/logs at most every other frame
+      if ((this as any)._lastOverlayUpdate !== true) {
+        this.updateSelectionOverlay()
+        ;(this as any)._lastOverlayUpdate = true
+      } else {
+        ;(this as any)._lastOverlayUpdate = false
+      }
+      if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
+        this._debugFrame = (this._debugFrame + 1) % 2
+        if (this._debugFrame === 0) {
+          console.log('➡️ dragging', { gx, gy, newX, newY })
+        }
+      }
       e.stopPropagation()
     }
     const onPointerUp = (e: PIXI.FederatedPointerEvent) => {
       if (!this.isDragging) return
       this.isDragging = false
       if (this.selectionOverlay) this.selectionOverlay.visible = false
+      this.imageSprite!.cursor = this.config.locked ? 'default' : 'move'
       e.stopPropagation()
       if ((globalThis as any).DEBUG_REFERENCE_IMAGE) {
         console.log('🖱️ sprite pointerup', { x: e.globalX ?? e.global.x, y: e.globalY ?? e.global.y, finalPos: { x: this.config.x, y: this.config.y } })
       }
+      // Release pointer capture
+      try {
+        if (this.pointerCapture && (this.pointerCapture.el as any).releasePointerCapture) {
+          ;(this.pointerCapture.el as any).releasePointerCapture(this.pointerCapture.id)
+          if ((globalThis as any).DEBUG_REFERENCE_IMAGE) console.log('📌 pointer capture released', { pid: this.pointerCapture.id })
+        }
+      } catch {}
+      this.pointerCapture = null
+      // Emit one config-changed after drag ends for React state sync
+      const prev = this.preDragConfig ?? undefined
+      this.preDragConfig = null
+      this.emitEvent('config-changed', this.getEventData({ previousConfig: prev }))
     }
     sprite.on('pointerdown', onPointerDown)
     sprite.on('globalpointermove', onPointerMove)
