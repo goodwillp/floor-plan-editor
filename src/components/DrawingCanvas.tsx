@@ -68,6 +68,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   const wallRendererRef = useRef<WallRenderer | null>(null)
   const viewportAPIRef = useRef<CanvasViewportAPI | null>(null)
   const debugOverlayRef = useRef<PIXI.Container | null>(null)
+  const [debugOverlayTick, setDebugOverlayTick] = useState(0)
   const [layers, setLayers] = useState<CanvasLayers | null>(null)
   const [, setApp] = useState<PIXI.Application | null>(null)
   const [canvasSize, setCanvasSize] = useState<{ width: number; height: number } | undefined>(undefined)
@@ -119,12 +120,16 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       }
       // Refresh proximity merges after wall update
       refreshProximityMerges()
+      // Update debug overlays
+      setDebugOverlayTick(t => t + 1)
     },
     onWallDeleted: (wallIds) => {
       clearSelection()
       onWallDeleted?.(wallIds)
       // Refresh proximity merges after wall deletion
       refreshProximityMerges()
+      // Update debug overlays
+      setDebugOverlayTick(t => t + 1)
     },
     onStatusMessage
   })
@@ -357,6 +362,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
 
       // Create a dedicated container for debug overlays so we don't clear the entire UI layer
       try {
+        // Ensure UI container can sort its children by zIndex so overlays can appear on top
+        canvasLayers.ui.sortableChildren = true
         const overlay = new PIXI.Container()
         overlay.zIndex = 1000
         ;(overlay as any).eventMode = 'none'
@@ -410,6 +417,13 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     const shellColor = 0xff8800
     const vertexFill = 0xff8800
 
+    // Match wall line widths used by renderer for visual parity
+    const WALL_LINE_WIDTH: Record<'layout' | 'zone' | 'area', number> = {
+      layout: 2.5,
+      zone: 2.0,
+      area: 1.5
+    }
+
     const nodesMap = new Map<string, any>()
     modelRef.current.getAllNodes().forEach(n => nodesMap.set(n.id, n))
 
@@ -420,7 +434,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       // Guides: draw segment cores and nodes for this type
       if ((wallLayerDebug as any)[t]?.guides) {
         const g = new PIXI.Graphics()
-        g.setStrokeStyle({ width: 1, color: guidesColor, alpha: 0.8 })
+        const guideWidth = (WALL_LINE_WIDTH as any)[t] * 2 // twice as thick as wall line
+        // Make nodes twice as big as current (previously 15x base width)
+        const nodeRadius = Math.max((WALL_LINE_WIDTH as any)[t] * 20, 24)
+        g.setStrokeStyle({ width: guideWidth, color: guidesColor, alpha: 0.8 })
         const seenNode = new Set<string>()
         modelRef.current.getAllWalls().forEach(wall => {
           if (wall.type !== t || !wall.visible) return
@@ -440,17 +457,21 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
         g.setFillStyle({ color: nodeFill, alpha: 0.9 })
         seenNode.forEach(id => {
           const n = nodesMap.get(id)
-          if (n) g.circle(n.x, n.y, 2)
+          if (n) g.circle(n.x, n.y, nodeRadius)
         })
         g.fill()
         overlay.addChild(g)
       }
 
-      // Shell Outline: draw union shell outline and vertices
+      // Shell Outline: draw union shell as outline only, with vertex dots; do not fill polygon area
       if ((wallLayerDebug as any)[t]?.shell) {
-        const g = new PIXI.Graphics()
-        g.setStrokeStyle({ width: 1, color: shellColor, alpha: 0.9 })
-        g.setFillStyle({ color: vertexFill, alpha: 0.9 })
+        const outline = new PIXI.Graphics()
+        // Make shell outline 3x thicker for stronger visibility
+        outline.setStrokeStyle({ width: 6, color: shellColor, alpha: 0.95 })
+        outline.zIndex = 2000
+        const vertices = new PIXI.Graphics()
+        vertices.setFillStyle({ color: vertexFill, alpha: 0.9 })
+        vertices.zIndex = 2001
         modelRef.current.getAllWalls().forEach(wall => {
           if (wall.type !== t || !wall.visible) return
           const half = wall.thickness / 2
@@ -484,25 +505,26 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           multipoly.forEach(polygon => {
             polygon.forEach(ring => {
               const [x0, y0] = ring[0]
-              g.moveTo(x0, y0)
+              outline.moveTo(x0, y0)
               for (let i = 1; i < ring.length; i++) {
                 const [x, y] = ring[i]
-                g.lineTo(x, y)
+                outline.lineTo(x, y)
               }
-              g.closePath()
-              // Draw vertices
+              outline.closePath()
+              // Draw vertices as separate filled circles (5x bigger than before)
               ring.forEach(([vx, vy]) => {
-                g.circle(vx, vy, 1.8)
+                vertices.circle(vx, vy, 12)
               })
             })
           })
-          g.stroke()
-          g.fill()
         })
-        overlay.addChild(g)
+        outline.stroke()
+        vertices.fill()
+        overlay.addChild(outline)
+        overlay.addChild(vertices)
       }
     }
-  }, [layers, wallsVisible, wallLayerVisibility, wallLayerDebug])
+  }, [layers, wallsVisible, wallLayerVisibility, wallLayerDebug, debugOverlayTick])
 
   useEffect(() => {
     renderDebugOverlays()
@@ -605,6 +627,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           }
           // Refresh proximity merges after wall creation
           refreshProximityMerges()
+          // Update debug overlays
+          setDebugOverlayTick(t => t + 1)
         } else {
           onStatusMessage?.('Failed to create wall')
         }

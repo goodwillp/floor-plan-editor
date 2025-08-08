@@ -14,6 +14,8 @@ export class DrawingRenderer {
 
   constructor(container: PIXI.Container) {
     this.container = container
+    // Ensure z-index sorting is honored for debug/preview layers
+    this.container.sortableChildren = true
     this.graphics = new PIXI.Graphics()
     this.previewGraphics = new PIXI.Graphics()
     this.guideGraphics = new PIXI.Graphics()
@@ -23,10 +25,10 @@ export class DrawingRenderer {
     this.container.addChild(this.previewGraphics)
     this.container.addChild(this.guideGraphics)
     
-    // Set z-index for proper layering
-    this.graphics.zIndex = 1
-    this.previewGraphics.zIndex = 2
-    this.guideGraphics.zIndex = 3
+    // Set z-index for proper layering (guides on top of any overlays)
+    this.graphics.zIndex = 500
+    this.previewGraphics.zIndex = 3000
+    this.guideGraphics.zIndex = 3001
   }
 
   /**
@@ -71,7 +73,7 @@ export class DrawingRenderer {
     
     // Draw dashed preview line (Pixi v8)
     this.previewGraphics
-      .setStrokeStyle({ width: 2, color, alpha: 0.6 })
+      .setStrokeStyle({ width: 3, color, alpha: 0.7 })
     this.drawDashedLine(this.previewGraphics, start, end, 5, 5)
     this.previewGraphics.stroke()
     
@@ -97,17 +99,23 @@ export class DrawingRenderer {
   renderSnapGuide(guideStart?: Point, guideEnd?: Point, snappedPoint?: Point): void {
     this.guideGraphics.clear()
     if (guideStart && guideEnd) {
+      // Darker and thicker target line to stand out against visible layer guides
       this.guideGraphics
-        .setStrokeStyle({ width: 3, color: 0x3b82f6, alpha: 0.85 })
+        .setStrokeStyle({ width: 6, color: 0x0b4aa8, alpha: 1 })
         .moveTo(guideStart.x, guideStart.y)
         .lineTo(guideEnd.x, guideEnd.y)
         .stroke()
     }
     if (snappedPoint) {
+      // Prominent snapped point with outer ring for contrast
       this.guideGraphics
-        .setFillStyle({ color: 0x3b82f6, alpha: 1 })
-        .circle(snappedPoint.x, snappedPoint.y, 6)
+        .setFillStyle({ color: 0x0b4aa8, alpha: 1 })
+        .circle(snappedPoint.x, snappedPoint.y, 10)
         .fill()
+      this.guideGraphics
+        .setStrokeStyle({ width: 3, color: 0xffffff, alpha: 0.95 })
+        .circle(snappedPoint.x, snappedPoint.y, 10)
+        .stroke()
     }
   }
 

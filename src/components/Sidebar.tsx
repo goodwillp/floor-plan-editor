@@ -364,137 +364,137 @@ export function Sidebar({
                   <div id="walls-children" className="mt-2 space-y-2">
                     {/* Layout row */}
                     <div className="rounded px-2 py-1 border">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">Layout</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => onWallLayerVisibilityChange?.('layout', !(wallLayerVisibility?.layout ?? true))}
-                          title={(wallLayerVisibility?.layout ?? true) ? 'Hide layout walls' : 'Show layout walls'}
-                          aria-label={(wallLayerVisibility?.layout ?? true) ? 'Hide layout walls' : 'Show layout walls'}
-                          disabled={!wallsVisible}
-                        >
-                          {(wallLayerVisibility?.layout ?? true) ? (
-                            <Eye className="h-3 w-3" />
-                          ) : (
-                            <EyeOff className="h-3 w-3" />
-                          )}
-                        </Button>
-                      </div>
-                      <div className="mt-2 flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => onToggleGuides?.('layout')}
-                          disabled={!wallsVisible}
-                          title={wallLayerDebug?.layout.guides ? 'Hide guides' : 'Show guides'}
-                          aria-label={wallLayerDebug?.layout.guides ? 'Hide guides' : 'Show guides'}
-                        >
-                          <Crosshair className={cn('h-3 w-3', wallLayerDebug?.layout.guides ? 'opacity-100' : 'opacity-40')} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => onToggleShell?.('layout')}
-                          disabled={!wallsVisible}
-                          title={wallLayerDebug?.layout.shell ? 'Hide shell outline' : 'Show shell outline'}
-                          aria-label={wallLayerDebug?.layout.shell ? 'Hide shell outline' : 'Show shell outline'}
-                        >
-                          <Shapes className={cn('h-3 w-3', wallLayerDebug?.layout.shell ? 'opacity-100' : 'opacity-40')} />
-                        </Button>
+                        <div className="ml-auto flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => onToggleGuides?.('layout')}
+                            disabled={!wallsVisible}
+                            title={wallLayerDebug?.layout.guides ? 'Hide guides' : 'Show guides'}
+                            aria-label={wallLayerDebug?.layout.guides ? 'Hide guides' : 'Show guides'}
+                          >
+                            <Crosshair className={cn('h-3 w-3', wallLayerDebug?.layout.guides ? 'opacity-100' : 'opacity-40')} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => onToggleShell?.('layout')}
+                            disabled={!wallsVisible}
+                            title={wallLayerDebug?.layout.shell ? 'Hide shell outline' : 'Show shell outline'}
+                            aria-label={wallLayerDebug?.layout.shell ? 'Hide shell outline' : 'Show shell outline'}
+                          >
+                            <Shapes className={cn('h-3 w-3', wallLayerDebug?.layout.shell ? 'opacity-100' : 'opacity-40')} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => onWallLayerVisibilityChange?.('layout', !(wallLayerVisibility?.layout ?? true))}
+                            title={(wallLayerVisibility?.layout ?? true) ? 'Hide layout walls' : 'Show layout walls'}
+                            aria-label={(wallLayerVisibility?.layout ?? true) ? 'Hide layout walls' : 'Show layout walls'}
+                            disabled={!wallsVisible}
+                          >
+                            {(wallLayerVisibility?.layout ?? true) ? (
+                              <Eye className="h-3 w-3" />
+                            ) : (
+                              <EyeOff className="h-3 w-3" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                     {/* Zone row */}
                     <div className="rounded px-2 py-1 border">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">Zone</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => onWallLayerVisibilityChange?.('zone', !(wallLayerVisibility?.zone ?? true))}
-                          title={(wallLayerVisibility?.zone ?? true) ? 'Hide zone walls' : 'Show zone walls'}
-                          aria-label={(wallLayerVisibility?.zone ?? true) ? 'Hide zone walls' : 'Show zone walls'}
-                          disabled={!wallsVisible}
-                        >
-                          {(wallLayerVisibility?.zone ?? true) ? (
-                            <Eye className="h-3 w-3" />
-                          ) : (
-                            <EyeOff className="h-3 w-3" />
-                          )}
-                        </Button>
-                      </div>
-                      <div className="mt-2 flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => onToggleGuides?.('zone')}
-                          disabled={!wallsVisible}
-                          title={wallLayerDebug?.zone.guides ? 'Hide guides' : 'Show guides'}
-                          aria-label={wallLayerDebug?.zone.guides ? 'Hide guides' : 'Show guides'}
-                        >
-                          <Crosshair className={cn('h-3 w-3', wallLayerDebug?.zone.guides ? 'opacity-100' : 'opacity-40')} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => onToggleShell?.('zone')}
-                          disabled={!wallsVisible}
-                          title={wallLayerDebug?.zone.shell ? 'Hide shell outline' : 'Show shell outline'}
-                          aria-label={wallLayerDebug?.zone.shell ? 'Hide shell outline' : 'Show shell outline'}
-                        >
-                          <Shapes className={cn('h-3 w-3', wallLayerDebug?.zone.shell ? 'opacity-100' : 'opacity-40')} />
-                        </Button>
+                        <div className="ml-auto flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => onToggleGuides?.('zone')}
+                            disabled={!wallsVisible}
+                            title={wallLayerDebug?.zone.guides ? 'Hide guides' : 'Show guides'}
+                            aria-label={wallLayerDebug?.zone.guides ? 'Hide guides' : 'Show guides'}
+                          >
+                            <Crosshair className={cn('h-3 w-3', wallLayerDebug?.zone.guides ? 'opacity-100' : 'opacity-40')} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => onToggleShell?.('zone')}
+                            disabled={!wallsVisible}
+                            title={wallLayerDebug?.zone.shell ? 'Hide shell outline' : 'Show shell outline'}
+                            aria-label={wallLayerDebug?.zone.shell ? 'Hide shell outline' : 'Show shell outline'}
+                          >
+                            <Shapes className={cn('h-3 w-3', wallLayerDebug?.zone.shell ? 'opacity-100' : 'opacity-40')} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => onWallLayerVisibilityChange?.('zone', !(wallLayerVisibility?.zone ?? true))}
+                            title={(wallLayerVisibility?.zone ?? true) ? 'Hide zone walls' : 'Show zone walls'}
+                            aria-label={(wallLayerVisibility?.zone ?? true) ? 'Hide zone walls' : 'Show zone walls'}
+                            disabled={!wallsVisible}
+                          >
+                            {(wallLayerVisibility?.zone ?? true) ? (
+                              <Eye className="h-3 w-3" />
+                            ) : (
+                              <EyeOff className="h-3 w-3" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                     {/* Area row */}
                     <div className="rounded px-2 py-1 border">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">Area</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => onWallLayerVisibilityChange?.('area', !(wallLayerVisibility?.area ?? true))}
-                          title={(wallLayerVisibility?.area ?? true) ? 'Hide area walls' : 'Show area walls'}
-                          aria-label={(wallLayerVisibility?.area ?? true) ? 'Hide area walls' : 'Show area walls'}
-                          disabled={!wallsVisible}
-                        >
-                          {(wallLayerVisibility?.area ?? true) ? (
-                            <Eye className="h-3 w-3" />
-                          ) : (
-                            <EyeOff className="h-3 w-3" />
-                          )}
-                        </Button>
-                      </div>
-                      <div className="mt-2 flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => onToggleGuides?.('area')}
-                          disabled={!wallsVisible}
-                          title={wallLayerDebug?.area.guides ? 'Hide guides' : 'Show guides'}
-                          aria-label={wallLayerDebug?.area.guides ? 'Hide guides' : 'Show guides'}
-                        >
-                          <Crosshair className={cn('h-3 w-3', wallLayerDebug?.area.guides ? 'opacity-100' : 'opacity-40')} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => onToggleShell?.('area')}
-                          disabled={!wallsVisible}
-                          title={wallLayerDebug?.area.shell ? 'Hide shell outline' : 'Show shell outline'}
-                          aria-label={wallLayerDebug?.area.shell ? 'Hide shell outline' : 'Show shell outline'}
-                        >
-                          <Shapes className={cn('h-3 w-3', wallLayerDebug?.area.shell ? 'opacity-100' : 'opacity-40')} />
-                        </Button>
+                        <div className="ml-auto flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => onToggleGuides?.('area')}
+                            disabled={!wallsVisible}
+                            title={wallLayerDebug?.area.guides ? 'Hide guides' : 'Show guides'}
+                            aria-label={wallLayerDebug?.area.guides ? 'Hide guides' : 'Show guides'}
+                          >
+                            <Crosshair className={cn('h-3 w-3', wallLayerDebug?.area.guides ? 'opacity-100' : 'opacity-40')} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => onToggleShell?.('area')}
+                            disabled={!wallsVisible}
+                            title={wallLayerDebug?.area.shell ? 'Hide shell outline' : 'Show shell outline'}
+                            aria-label={wallLayerDebug?.area.shell ? 'Hide shell outline' : 'Show shell outline'}
+                          >
+                            <Shapes className={cn('h-3 w-3', wallLayerDebug?.area.shell ? 'opacity-100' : 'opacity-40')} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => onWallLayerVisibilityChange?.('area', !(wallLayerVisibility?.area ?? true))}
+                            title={(wallLayerVisibility?.area ?? true) ? 'Hide area walls' : 'Show area walls'}
+                            aria-label={(wallLayerVisibility?.area ?? true) ? 'Hide area walls' : 'Show area walls'}
+                            disabled={!wallsVisible}
+                          >
+                            {(wallLayerVisibility?.area ?? true) ? (
+                              <Eye className="h-3 w-3" />
+                            ) : (
+                              <EyeOff className="h-3 w-3" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
