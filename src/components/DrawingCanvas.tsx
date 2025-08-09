@@ -523,10 +523,11 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     const vertexFill = 0xff8800
     const guideTextColor = guidesColor
     const shellTextColor = shellColor
-    const GUIDE_SEGMENT_FONT = 70
-    const GUIDE_NODE_FONT = 65
-    const SHELL_SEGMENT_FONT = 70
-    const SHELL_NODE_FONT = 60
+    // Readable debug font sizes; combined with inverse scaling to keep them constant on screen
+    const GUIDE_SEGMENT_FONT = 22
+    const GUIDE_NODE_FONT = 20
+    const SHELL_SEGMENT_FONT = 22
+    const SHELL_NODE_FONT = 20
 
     // Match wall line widths used by renderer for visual parity
     const WALL_LINE_WIDTH: Record<'layout' | 'zone' | 'area', number> = {
@@ -537,6 +538,80 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
 
     const nodesMap = new Map<string, any>()
     modelRef.current.getAllNodes().forEach(n => nodesMap.set(n.id, n))
+
+    // Global placed rectangles across all debug labels to prevent cross-overlaps
+    type Rect = { x: number; y: number; w: number; h: number }
+    const placedGlobal: Rect[] = []
+    const intersects = (a: Rect, b: Rect) => !(a.x + a.w < b.x || b.x + b.w < a.x || a.y + a.h < b.y || b.y + b.h < a.y)
+    const makeTryPlace = (sx: number, sy: number, connectors?: PIXI.Graphics) => (textObj: PIXI.Text, bx: number, by: number, primaryOffset?: { x: number; y: number }) => {
+      const candidates: Array<{ x: number; y: number }> = []
+      if (primaryOffset) candidates.push(primaryOffset)
+      const stepsPx = [
+        { x: 10, y: 10 }, { x: 12, y: -10 }, { x: -12, y: 12 }, { x: -12, y: -12 },
+        { x: 16, y: 0 }, { x: -16, y: 0 }, { x: 0, y: 16 }, { x: 0, y: -16 },
+        { x: 22, y: 12 }, { x: -22, y: 12 }, { x: 22, y: -12 }, { x: -22, y: -12 }
+      ]
+      const steps = stepsPx.map(s => ({ x: s.x / sx, y: s.y / sy }))
+      candidates.push(...steps)
+      const pad = 2 / Math.max(sx, sy)
+      for (const off of candidates) {
+        const tx = bx + off.x
+        const ty = by + off.y
+        textObj.x = tx
+        textObj.y = ty
+        const rect: Rect = { x: tx - pad, y: ty - pad, w: textObj.width + pad * 2, h: textObj.height + pad * 2 }
+        if (!placedGlobal.some(r => intersects(r, rect))) {
+          placedGlobal.push(rect)
+          const dx = tx - bx
+          const dy = ty - by
+          if (connectors && Math.hypot(dx * sx, dy * sy) > 22) {
+            connectors.moveTo(bx, by).lineTo(tx + textObj.width / 2, ty + textObj.height / 2)
+          }
+          return
+        }
+      }
+      // Fallback
+      textObj.x = bx
+      textObj.y = by
+      placedGlobal.push({ x: bx, y: by, w: textObj.width, h: textObj.height })
+    }
+
+    // Geometry helpers to clean shell rings for clearer topology
+    const isClose = (ax: number, ay: number, bx: number, by: number, tol: number) => {
+      return Math.hypot(ax - bx, ay - by) <= tol
+    }
+    const pointLineDistance = (px: number, py: number, ax: number, ay: number, bx: number, by: number) => {
+      const vx = bx - ax, vy = by - ay
+      const wx = px - ax, wy = py - ay
+      const area2 = Math.abs(vx * wy - vy * wx)
+      const len = Math.hypot(vx, vy) || 1
+      return area2 / len
+    }
+    const simplifyRing = (ring: number[][], tol: number): number[][] => {
+      if (ring.length <= 4) return ring
+      let points = ring.slice(0, ring.length - 1) // exclude closing duplicate
+      // Iterate a couple passes to fully collapse chains
+      for (let pass = 0; pass < 2; pass++) {
+        const out: number[][] = []
+        const n = points.length
+        for (let i = 0; i < n; i++) {
+          const prev = out.length > 0 ? out[out.length - 1] : points[(i - 1 + n) % n]
+          const curr = points[i]
+          const next = points[(i + 1) % n]
+          // Drop near-duplicates
+          if (prev && isClose(prev[0], prev[1], curr[0], curr[1], tol * 0.5)) continue
+          // Remove vertex if almost on the line between prev and next
+          if (prev && next && pointLineDistance(curr[0], curr[1], prev[0], prev[1], next[0], next[1]) <= tol) continue
+          out.push(curr)
+        }
+        points = out
+        if (points.length <= 3) break
+      }
+      if (points.length < 3) return ring
+      // Close ring
+      points.push([points[0][0], points[0][1]])
+      return points
+    }
 
     for (const t of types) {
       const typeVisible = wallsVisible && (wallLayerVisibility as any)[t] !== false
@@ -552,6 +627,11 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
         const seenNode = new Set<string>()
         const labelContainer = new PIXI.Container()
         labelContainer.zIndex = 3005
+        // Inverse scale for constant on-screen size
+        const stageForGuides = (overlay.parent && overlay.parent.parent) as PIXI.Container | null
+        const gx = stageForGuides?.scale?.x || 1
+        const gy = stageForGuides?.scale?.y || 1
+        const tryPlaceGuide = makeTryPlace(gx, gy)
         modelRef.current.getAllWalls().forEach(wall => {
           if (wall.type !== t || !wall.visible) return
           wall.segmentIds.forEach(segId => {
@@ -570,11 +650,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
                 fontSize: GUIDE_SEGMENT_FONT,
                 fontFamily: 'monospace',
                 fontWeight: '600',
-                dropShadow: true,
-                dropShadowColor: '#000000'
+                dropShadow: false
               } as any)
-              text.x = midX + 18
-              text.y = midY + 18
+              text.scale.set(1 / gx, 1 / gy)
+              tryPlaceGuide(text, midX, midY, { x: 18 / gx, y: 18 / gy })
               labelContainer.addChild(text)
             }
             seenNode.add(a.id)
@@ -595,11 +674,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
               fontSize: GUIDE_NODE_FONT,
               fontFamily: 'monospace',
               fontWeight: '600',
-              dropShadow: true,
-              dropShadowColor: '#000000'
+              dropShadow: false
             } as any)
-            nodeText.x = n.x + nodeRadius + 18
-            nodeText.y = n.y + nodeRadius + 14
+            nodeText.scale.set(1 / gx, 1 / gy)
+            tryPlaceGuide(nodeText, n.x, n.y, { x: (nodeRadius + 18) / gx, y: (nodeRadius + 14) / gy })
             labelContainer.addChild(nodeText)
           }
         })
@@ -622,6 +700,16 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
         const shellLabels = new PIXI.Container()
         shellLabels.zIndex = 2002
         ;(shellLabels as any).eventMode = 'none'
+        // Connector lines for labels that were displaced to avoid overlaps
+        const connectors = new PIXI.Graphics()
+        // Stage scale for constant-size label and connector rendering
+        const stageForShell = (overlay.parent && overlay.parent.parent) as PIXI.Container | null
+        const sx = stageForShell?.scale?.x || 1
+        const sy = stageForShell?.scale?.y || 1
+        const invAvg = (1 / sx + 1 / sy) / 2
+        connectors.setStrokeStyle({ width: 1.5 * invAvg, color: shellColor, alpha: 0.6 })
+        connectors.zIndex = 2001
+        const tryPlace = makeTryPlace(sx, sy, connectors)
         modelRef.current.getAllWalls().forEach(wall => {
           if (wall.type !== t || !wall.visible) return
           const half = wall.thickness / 2
@@ -651,11 +739,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
                 fontSize: SHELL_SEGMENT_FONT,
                 fontFamily: 'monospace',
                 fontWeight: '600',
-                dropShadow: true,
-                dropShadowColor: '#000000'
+                dropShadow: false
               } as any)
-              text.x = midX + 18
-              text.y = midY + 18
+              text.scale.set(1 / sx, 1 / sy)
+              tryPlace(text, midX, midY, { x: 18 / sx, y: 18 / sy })
               shellLabels.addChild(text)
             }
           })
@@ -720,8 +807,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           if (!unionResult) return
           const isMulti = Array.isArray(unionResult[0][0][0])
           const multipoly: number[][][][] = isMulti ? unionResult : [unionResult]
-          multipoly.forEach(polygon => {
-            polygon.forEach(ring => {
+          multipoly.forEach((polygon) => {
+            polygon.forEach((ring, ringIdx) => {
+              // Clean up nearly-collinear and duplicate vertices to avoid spurious labels
+              ring = simplifyRing(ring, Math.max(2, half * 0.15))
               const [x0, y0] = ring[0]
               outline.moveTo(x0, y0)
               for (let i = 1; i < ring.length; i++) {
@@ -729,36 +818,47 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
                 outline.lineTo(x, y)
               }
               outline.closePath()
-              // Draw vertices as separate filled circles (5x bigger than before)
-              ring.forEach(([vx, vy]) => {
+
+              // Draw vertices and deterministic vertex/edge labels per ring
+              for (let i = 0; i < ring.length; i++) {
+                const [vx, vy] = ring[i]
                 vertices.circle(vx, vy, 12)
+
                 if ((wallLayerDebug as any)[t]?.shellLabels) {
-                  const label = new PIXI.Text('', {
+                  // Vertex label: V = r{ringIdx}:v{i}
+                  const vLabel = new PIXI.Text(`V = r${ringIdx}:v${i}` as any, {
                     fill: shellTextColor,
                     fontSize: SHELL_NODE_FONT,
                     fontFamily: 'monospace',
                     fontWeight: '600',
-                    dropShadow: true,
-                    dropShadowColor: '#000000'
+                    dropShadow: false
                   } as any)
-                  // For shell vertex, we don't have a direct ID; show nearest node id if within small radius
-                  // Find nearest node
-                  let nearestId: string | null = null
-                  let best = Infinity
-                  nodesMap.forEach((n, id) => {
-                    const dx = n.x - vx
-                    const dy = n.y - vy
-                    const d2 = dx * dx + dy * dy
-                    if (d2 < best) { best = d2; nearestId = id }
-                  })
-                  if (nearestId && best < 36 * 36) {
-                    label.text = `N = ${String(nearestId)}`
-                    label.x = vx + 18
-                    label.y = vy + 16
-                    shellLabels.addChild(label)
-                  }
+                  vLabel.scale.set(1 / sx, 1 / sy)
+                  tryPlace(vLabel, vx, vy)
+                  shellLabels.addChild(vLabel)
+
+                  // Edge label at midpoint to next vertex (wrap around)
+                  const [nx, ny] = ring[(i + 1) % ring.length]
+                  const mx = (vx + nx) / 2
+                  const my = (vy + ny) / 2
+                  const eLabel = new PIXI.Text(`E = r${ringIdx}:e${i}` as any, {
+                    fill: shellTextColor,
+                    fontSize: SHELL_SEGMENT_FONT,
+                    fontFamily: 'monospace',
+                    fontWeight: '600',
+                    dropShadow: false
+                  } as any)
+                  eLabel.scale.set(1 / sx, 1 / sy)
+                  // Prefer initial offset along edge normal away from polygon (deterministic)
+                  const ex = nx - vx
+                  const ey = ny - vy
+                  const elen = Math.hypot(ex, ey) || 1
+                  const nnx = -ey / elen
+                  const nny = ex / elen
+                  tryPlace(eLabel, mx, my, { x: (nnx * 12) / sx, y: (nny * 12) / sy })
+                  shellLabels.addChild(eLabel)
                 }
-              })
+              }
             })
           })
         })
@@ -768,6 +868,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
         overlay.addChild(vertices)
         if ((wallLayerDebug as any)[t]?.shellLabels) {
           overlay.addChild(shellLabels)
+          overlay.addChild(connectors)
         }
       }
     }
@@ -967,6 +1068,13 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     }
   }, [referenceImage.hasImage, referenceImage.isLocked, referenceImage.isVisible, onReferenceImageUpdate])
 
+  // Wrap viewport change to refresh overlays so inverse-scaling stays correct
+  const handleViewportChanged = useCallback((v: { zoom: number; panX: number; panY: number }) => {
+    onViewportChange?.(v)
+    // Trigger re-render of debug overlays on any zoom/pan update
+    setDebugOverlayTick(t => t + 1)
+  }, [onViewportChange])
+
   return (
     <CanvasContainer
       className={className}
@@ -975,7 +1083,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       onCanvasDoubleClick={handleCanvasDoubleClick}
       onCanvasRightClick={handleCanvasRightClick}
       onCanvasReady={handleCanvasReady}
-      onViewportChange={onViewportChange}
+      onViewportChange={handleViewportChanged}
     />
   )
 })
