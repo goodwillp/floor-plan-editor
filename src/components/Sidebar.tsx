@@ -57,9 +57,9 @@ interface SidebarProps {
   wallsVisible?: boolean
     wallLayerVisibility?: { layout: boolean; zone: boolean; area: boolean }
     wallLayerDebug?: {
-      layout: { guides: boolean; shell: boolean }
-      zone: { guides: boolean; shell: boolean }
-      area: { guides: boolean; shell: boolean }
+      layout: { guides: boolean; shell: boolean; guidesLabels: boolean; shellLabels: boolean }
+      zone: { guides: boolean; shell: boolean; guidesLabels: boolean; shellLabels: boolean }
+      area: { guides: boolean; shell: boolean; guidesLabels: boolean; shellLabels: boolean }
     }
   gridVisible?: boolean
   referenceImageVisible?: boolean
@@ -87,6 +87,8 @@ interface SidebarProps {
     onWallLayerVisibilityChange?: (layer: 'layout' | 'zone' | 'area', visible: boolean) => void
     onToggleGuides?: (scope: 'all' | 'layout' | 'zone' | 'area') => void
     onToggleShell?: (scope: 'all' | 'layout' | 'zone' | 'area') => void
+    onToggleGuideLabels?: (scope: 'all' | 'layout' | 'zone' | 'area') => void
+    onToggleShellLabels?: (scope: 'all' | 'layout' | 'zone' | 'area') => void
   // Error handling props
   errorLog?: any[]
   memoryInfo?: any
@@ -137,6 +139,8 @@ export function Sidebar({
     onWallLayerVisibilityChange,
     onToggleGuides,
     onToggleShell,
+    onToggleGuideLabels,
+    onToggleShellLabels,
   // Error handling props
   errorLog = [],
   memoryInfo = null,
@@ -328,6 +332,21 @@ export function Sidebar({
                           'opacity-40': !(wallLayerDebug?.layout.guides || wallLayerDebug?.zone.guides || wallLayerDebug?.area.guides)
                         })} />
                       </Button>
+                      {/* Parent guide labels toggle */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => onToggleGuideLabels?.('all')}
+                        title="Toggle guide segment and node labels for all wall types"
+                        aria-label="Toggle guide labels for all wall types"
+                        disabled={!wallsVisible}
+                      >
+                        <Crosshair className={cn('h-3 w-3', {
+                          'opacity-100': (wallLayerDebug?.layout.guidesLabels || wallLayerDebug?.zone.guidesLabels || wallLayerDebug?.area.guidesLabels) && wallsVisible,
+                          'opacity-40': !(wallLayerDebug?.layout.guidesLabels || wallLayerDebug?.zone.guidesLabels || wallLayerDebug?.area.guidesLabels)
+                        })} />
+                      </Button>
                       {/* Parent shell toggle (applies to all wall types) */}
                       <Button
                         variant="ghost"
@@ -341,6 +360,21 @@ export function Sidebar({
                         <Shapes className={cn('h-3 w-3', {
                           'opacity-100': (wallLayerDebug?.layout.shell || wallLayerDebug?.zone.shell || wallLayerDebug?.area.shell) && wallsVisible,
                           'opacity-40': !(wallLayerDebug?.layout.shell || wallLayerDebug?.zone.shell || wallLayerDebug?.area.shell)
+                        })} />
+                      </Button>
+                      {/* Parent shell labels toggle */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => onToggleShellLabels?.('all')}
+                        title="Toggle shell segment and node labels for all wall types"
+                        aria-label="Toggle shell labels for all wall types"
+                        disabled={!wallsVisible}
+                      >
+                        <Shapes className={cn('h-3 w-3', {
+                          'opacity-100': (wallLayerDebug?.layout.shellLabels || wallLayerDebug?.zone.shellLabels || wallLayerDebug?.area.shellLabels) && wallsVisible,
+                          'opacity-40': !(wallLayerDebug?.layout.shellLabels || wallLayerDebug?.zone.shellLabels || wallLayerDebug?.area.shellLabels)
                         })} />
                       </Button>
                       {/* Parent visibility toggle */}
@@ -382,12 +416,34 @@ export function Sidebar({
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
+                            onClick={() => onToggleGuideLabels?.('layout')}
+                            disabled={!wallsVisible}
+                            title={wallLayerDebug?.layout.guidesLabels ? 'Hide guide labels' : 'Show guide labels'}
+                            aria-label={wallLayerDebug?.layout.guidesLabels ? 'Hide guide labels' : 'Show guide labels'}
+                          >
+                            <Crosshair className={cn('h-3 w-3', wallLayerDebug?.layout.guidesLabels ? 'opacity-100' : 'opacity-40')} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
                             onClick={() => onToggleShell?.('layout')}
                             disabled={!wallsVisible}
                             title={wallLayerDebug?.layout.shell ? 'Hide shell outline' : 'Show shell outline'}
                             aria-label={wallLayerDebug?.layout.shell ? 'Hide shell outline' : 'Show shell outline'}
                           >
                             <Shapes className={cn('h-3 w-3', wallLayerDebug?.layout.shell ? 'opacity-100' : 'opacity-40')} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => onToggleShellLabels?.('layout')}
+                            disabled={!wallsVisible}
+                            title={wallLayerDebug?.layout.shellLabels ? 'Hide shell labels' : 'Show shell labels'}
+                            aria-label={wallLayerDebug?.layout.shellLabels ? 'Hide shell labels' : 'Show shell labels'}
+                          >
+                            <Shapes className={cn('h-3 w-3', wallLayerDebug?.layout.shellLabels ? 'opacity-100' : 'opacity-40')} />
                           </Button>
                           <Button
                             variant="ghost"
@@ -427,12 +483,34 @@ export function Sidebar({
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
+                            onClick={() => onToggleGuideLabels?.('zone')}
+                            disabled={!wallsVisible}
+                            title={wallLayerDebug?.zone.guidesLabels ? 'Hide guide labels' : 'Show guide labels'}
+                            aria-label={wallLayerDebug?.zone.guidesLabels ? 'Hide guide labels' : 'Show guide labels'}
+                          >
+                            <Crosshair className={cn('h-3 w-3', wallLayerDebug?.zone.guidesLabels ? 'opacity-100' : 'opacity-40')} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
                             onClick={() => onToggleShell?.('zone')}
                             disabled={!wallsVisible}
                             title={wallLayerDebug?.zone.shell ? 'Hide shell outline' : 'Show shell outline'}
                             aria-label={wallLayerDebug?.zone.shell ? 'Hide shell outline' : 'Show shell outline'}
                           >
                             <Shapes className={cn('h-3 w-3', wallLayerDebug?.zone.shell ? 'opacity-100' : 'opacity-40')} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => onToggleShellLabels?.('zone')}
+                            disabled={!wallsVisible}
+                            title={wallLayerDebug?.zone.shellLabels ? 'Hide shell labels' : 'Show shell labels'}
+                            aria-label={wallLayerDebug?.zone.shellLabels ? 'Hide shell labels' : 'Show shell labels'}
+                          >
+                            <Shapes className={cn('h-3 w-3', wallLayerDebug?.zone.shellLabels ? 'opacity-100' : 'opacity-40')} />
                           </Button>
                           <Button
                             variant="ghost"
@@ -472,12 +550,34 @@ export function Sidebar({
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
+                            onClick={() => onToggleGuideLabels?.('area')}
+                            disabled={!wallsVisible}
+                            title={wallLayerDebug?.area.guidesLabels ? 'Hide guide labels' : 'Show guide labels'}
+                            aria-label={wallLayerDebug?.area.guidesLabels ? 'Hide guide labels' : 'Show guide labels'}
+                          >
+                            <Crosshair className={cn('h-3 w-3', wallLayerDebug?.area.guidesLabels ? 'opacity-100' : 'opacity-40')} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
                             onClick={() => onToggleShell?.('area')}
                             disabled={!wallsVisible}
                             title={wallLayerDebug?.area.shell ? 'Hide shell outline' : 'Show shell outline'}
                             aria-label={wallLayerDebug?.area.shell ? 'Hide shell outline' : 'Show shell outline'}
                           >
                             <Shapes className={cn('h-3 w-3', wallLayerDebug?.area.shell ? 'opacity-100' : 'opacity-40')} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => onToggleShellLabels?.('area')}
+                            disabled={!wallsVisible}
+                            title={wallLayerDebug?.area.shellLabels ? 'Hide shell labels' : 'Show shell labels'}
+                            aria-label={wallLayerDebug?.area.shellLabels ? 'Hide shell labels' : 'Show shell labels'}
+                          >
+                            <Shapes className={cn('h-3 w-3', wallLayerDebug?.area.shellLabels ? 'opacity-100' : 'opacity-40')} />
                           </Button>
                           <Button
                             variant="ghost"

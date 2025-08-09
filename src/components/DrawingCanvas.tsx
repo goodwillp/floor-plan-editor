@@ -22,9 +22,9 @@ interface DrawingCanvasProps {
   wallsVisible?: boolean
   wallLayerVisibility?: { layout: boolean; zone: boolean; area: boolean }
   wallLayerDebug?: {
-    layout: { guides: boolean; shell: boolean }
-    zone: { guides: boolean; shell: boolean }
-    area: { guides: boolean; shell: boolean }
+    layout: { guides: boolean; shell: boolean; guidesLabels?: boolean; shellLabels?: boolean }
+    zone: { guides: boolean; shell: boolean; guidesLabels?: boolean; shellLabels?: boolean }
+    area: { guides: boolean; shell: boolean; guidesLabels?: boolean; shellLabels?: boolean }
   }
   proximityMergingEnabled?: boolean
   proximityThreshold?: number
@@ -51,7 +51,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   gridVisible = false,
   wallsVisible = true,
   wallLayerVisibility = { layout: true, zone: true, area: true },
-  wallLayerDebug = { layout: { guides: false, shell: false }, zone: { guides: false, shell: false }, area: { guides: false, shell: false } },
+  wallLayerDebug = { layout: { guides: false, shell: false, guidesLabels: false, shellLabels: false }, zone: { guides: false, shell: false, guidesLabels: false, shellLabels: false }, area: { guides: false, shell: false, guidesLabels: false, shellLabels: false } },
   proximityMergingEnabled = true,
   proximityThreshold = 120,
   onMouseMove,
@@ -521,6 +521,12 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     const nodeFill = 0x1773b0
     const shellColor = 0xff8800
     const vertexFill = 0xff8800
+    const guideTextColor = guidesColor
+    const shellTextColor = shellColor
+    const GUIDE_SEGMENT_FONT = 70
+    const GUIDE_NODE_FONT = 65
+    const SHELL_SEGMENT_FONT = 70
+    const SHELL_NODE_FONT = 60
 
     // Match wall line widths used by renderer for visual parity
     const WALL_LINE_WIDTH: Record<'layout' | 'zone' | 'area', number> = {
@@ -544,6 +550,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
         const nodeRadius = Math.max((WALL_LINE_WIDTH as any)[t] * 20, 24)
         g.setStrokeStyle({ width: guideWidth, color: guidesColor, alpha: 0.8 })
         const seenNode = new Set<string>()
+        const labelContainer = new PIXI.Container()
+        labelContainer.zIndex = 3005
         modelRef.current.getAllWalls().forEach(wall => {
           if (wall.type !== t || !wall.visible) return
           wall.segmentIds.forEach(segId => {
@@ -553,6 +561,22 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
             const b = nodesMap.get(seg.endNodeId)
             if (!a || !b) return
             g.moveTo(a.x, a.y).lineTo(b.x, b.y)
+            // Segment ID label at midpoint
+            if ((wallLayerDebug as any)[t]?.guidesLabels) {
+              const midX = (a.x + b.x) / 2
+              const midY = (a.y + b.y) / 2
+              const text = new PIXI.Text(`S = ${String(seg.id)}`, {
+                fill: guideTextColor,
+                fontSize: GUIDE_SEGMENT_FONT,
+                fontFamily: 'monospace',
+                fontWeight: '600',
+                dropShadow: true,
+                dropShadowColor: '#000000'
+              } as any)
+              text.x = midX + 18
+              text.y = midY + 18
+              labelContainer.addChild(text)
+            }
             seenNode.add(a.id)
             seenNode.add(b.id)
           })
@@ -562,10 +586,28 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
         g.setFillStyle({ color: nodeFill, alpha: 0.9 })
         seenNode.forEach(id => {
           const n = nodesMap.get(id)
-          if (n) g.circle(n.x, n.y, nodeRadius)
+          if (!n) return
+          g.circle(n.x, n.y, nodeRadius)
+          // Node label with node id
+          if ((wallLayerDebug as any)[t]?.guidesLabels) {
+            const nodeText = new PIXI.Text(`N = ${String(id)}`, {
+              fill: guideTextColor,
+              fontSize: GUIDE_NODE_FONT,
+              fontFamily: 'monospace',
+              fontWeight: '600',
+              dropShadow: true,
+              dropShadowColor: '#000000'
+            } as any)
+            nodeText.x = n.x + nodeRadius + 18
+            nodeText.y = n.y + nodeRadius + 14
+            labelContainer.addChild(nodeText)
+          }
         })
         g.fill()
         overlay.addChild(g)
+        if ((wallLayerDebug as any)[t]?.guidesLabels) {
+          overlay.addChild(labelContainer)
+        }
       }
 
       // Shell Outline: draw union shell as outline only, with vertex dots; do not fill polygon area
@@ -577,6 +619,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
         const vertices = new PIXI.Graphics()
         vertices.setFillStyle({ color: vertexFill, alpha: 0.9 })
         vertices.zIndex = 2001
+        const shellLabels = new PIXI.Container()
+        shellLabels.zIndex = 2002
+        ;(shellLabels as any).eventMode = 'none'
         modelRef.current.getAllWalls().forEach(wall => {
           if (wall.type !== t || !wall.visible) return
           const half = wall.thickness / 2
@@ -598,6 +643,21 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
             const p3 = [b.x - nx * half, b.y - ny * half]
             const p4 = [a.x - nx * half, a.y - ny * half]
             rings.push([p1, p2, p3, p4, p1])
+            if ((wallLayerDebug as any)[t]?.shellLabels) {
+              const midX = (a.x + b.x) / 2
+              const midY = (a.y + b.y) / 2
+              const text = new PIXI.Text(`S = ${String(seg.id)}`, {
+                fill: shellTextColor,
+                fontSize: SHELL_SEGMENT_FONT,
+                fontFamily: 'monospace',
+                fontWeight: '600',
+                dropShadow: true,
+                dropShadowColor: '#000000'
+              } as any)
+              text.x = midX + 18
+              text.y = midY + 18
+              shellLabels.addChild(text)
+            }
           })
           // Node wedge joins to bridge at corners and avoid wrong vertices using miter intersection
           const idToSeg = new Map(wall.segmentIds.map(id => {
@@ -672,6 +732,32 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
               // Draw vertices as separate filled circles (5x bigger than before)
               ring.forEach(([vx, vy]) => {
                 vertices.circle(vx, vy, 12)
+                if ((wallLayerDebug as any)[t]?.shellLabels) {
+                  const label = new PIXI.Text('', {
+                    fill: shellTextColor,
+                    fontSize: SHELL_NODE_FONT,
+                    fontFamily: 'monospace',
+                    fontWeight: '600',
+                    dropShadow: true,
+                    dropShadowColor: '#000000'
+                  } as any)
+                  // For shell vertex, we don't have a direct ID; show nearest node id if within small radius
+                  // Find nearest node
+                  let nearestId: string | null = null
+                  let best = Infinity
+                  nodesMap.forEach((n, id) => {
+                    const dx = n.x - vx
+                    const dy = n.y - vy
+                    const d2 = dx * dx + dy * dy
+                    if (d2 < best) { best = d2; nearestId = id }
+                  })
+                  if (nearestId && best < 36 * 36) {
+                    label.text = `N = ${String(nearestId)}`
+                    label.x = vx + 18
+                    label.y = vy + 16
+                    shellLabels.addChild(label)
+                  }
+                }
               })
             })
           })
@@ -680,6 +766,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
         vertices.fill()
         overlay.addChild(outline)
         overlay.addChild(vertices)
+        if ((wallLayerDebug as any)[t]?.shellLabels) {
+          overlay.addChild(shellLabels)
+        }
       }
     }
   }, [layers, wallsVisible, wallLayerVisibility, wallLayerDebug, debugOverlayTick])

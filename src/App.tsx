@@ -53,13 +53,13 @@ function App() {
     area: true
   })
   const [wallLayerDebug, setWallLayerDebug] = useState<{
-    layout: { guides: boolean; shell: boolean }
-    zone: { guides: boolean; shell: boolean }
-    area: { guides: boolean; shell: boolean }
+    layout: { guides: boolean; shell: boolean; guidesLabels: boolean; shellLabels: boolean }
+    zone: { guides: boolean; shell: boolean; guidesLabels: boolean; shellLabels: boolean }
+    area: { guides: boolean; shell: boolean; guidesLabels: boolean; shellLabels: boolean }
   }>({
-    layout: { guides: false, shell: false },
-    zone: { guides: false, shell: false },
-    area: { guides: false, shell: false }
+    layout: { guides: false, shell: false, guidesLabels: false, shellLabels: false },
+    zone: { guides: false, shell: false, guidesLabels: false, shellLabels: false },
+    area: { guides: false, shell: false, guidesLabels: false, shellLabels: false }
   })
   
   // Canvas state
@@ -168,6 +168,34 @@ function App() {
         }
       }
       return { ...prev, [scope]: { ...prev[scope], shell: !prev[scope].shell } }
+    })
+  }, [])
+
+  const handleToggleGuideLabels = useCallback((scope: 'all' | 'layout' | 'zone' | 'area') => {
+    setWallLayerDebug(prev => {
+      if (scope === 'all') {
+        const next = !prev.layout.guidesLabels || !prev.zone.guidesLabels || !prev.area.guidesLabels
+        return {
+          layout: { ...prev.layout, guidesLabels: next },
+          zone: { ...prev.zone, guidesLabels: next },
+          area: { ...prev.area, guidesLabels: next }
+        }
+      }
+      return { ...prev, [scope]: { ...prev[scope], guidesLabels: !prev[scope].guidesLabels } }
+    })
+  }, [])
+
+  const handleToggleShellLabels = useCallback((scope: 'all' | 'layout' | 'zone' | 'area') => {
+    setWallLayerDebug(prev => {
+      if (scope === 'all') {
+        const next = !prev.layout.shellLabels || !prev.zone.shellLabels || !prev.area.shellLabels
+        return {
+          layout: { ...prev.layout, shellLabels: next },
+          zone: { ...prev.zone, shellLabels: next },
+          area: { ...prev.area, shellLabels: next }
+        }
+      }
+      return { ...prev, [scope]: { ...prev[scope], shellLabels: !prev[scope].shellLabels } }
     })
   }, [])
 
@@ -471,6 +499,8 @@ function App() {
               onWallsToggle={handleWallsToggle}
               onToggleGuides={handleToggleGuides}
               onToggleShell={handleToggleShell}
+              onToggleGuideLabels={handleToggleGuideLabels}
+              onToggleShellLabels={handleToggleShellLabels}
               onWallLayerVisibilityChange={handleWallLayerVisibilityChange}
               onReferenceImageToggleVisibility={handleReferenceImageToggleVisibility}
               onReferenceImageToggleLock={handleReferenceImageToggleLock}
