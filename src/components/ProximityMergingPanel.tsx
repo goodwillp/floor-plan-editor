@@ -260,6 +260,14 @@ export function ProximityMergingPanel({
                       } catch {}
                     }}>Apply Tolerances</Button>
                   </div>
+                  <div className="col-span-2">
+                    <Button size="sm" variant="outline" className="w-full" onClick={()=>{
+                      try {
+                        console.log('🧩 Apply geometric merges requested')
+                        window.dispatchEvent(new Event('proximity-apply-geometric'))
+                      } catch {}
+                    }}>Apply Geometric Merges</Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

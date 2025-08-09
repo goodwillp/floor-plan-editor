@@ -180,13 +180,75 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       } catch {}
     }
     const onRefresh = () => { console.log('🔄 Proximity refresh requested'); refreshProximityMerges(); onStatusMessage?.('Proximity merges refreshed') }
+    const onApplyGeometric = () => {
+      try {
+        console.log('🧩 Applying geometric merges from active proximity set')
+        const model = modelRef.current
+        const nodes = new Map<string, any>()
+        model.getAllNodes().forEach(n => nodes.set(n.id, n))
+        const segments = new Map<string, any>()
+        model.getAllSegments().forEach(s => segments.set(s.id, s))
+        const wallsById = new Map<string, any>()
+        model.getAllWalls().forEach(w => wallsById.set(w.id, w))
+        let edits = 0
+        activeMerges.forEach((merge) => {
+          merge.segments.forEach(pair => {
+            const seg2 = segments.get(pair.seg2Id)
+            const s2a = nodes.get(seg2?.startNodeId)
+            const s2b = nodes.get(seg2?.endNodeId)
+            const seg1 = segments.get(pair.seg1Id)
+            const s1a = nodes.get(seg1?.startNodeId)
+            const s1b = nodes.get(seg1?.endNodeId)
+            if (!seg1 || !seg2 || !s1a || !s1b || !s2a || !s2b) return
+            // Project the endpoints of seg1 onto seg2 and subdivide seg2 at the nearest projection of either endpoint
+            const project = (p: any, a: any, b: any) => {
+              const vx = b.x - a.x, vy = b.y - a.y
+              const wx = p.x - a.x, wy = p.y - a.y
+              const len2 = vx*vx+vy*vy
+              const t = len2>0 ? Math.max(0, Math.min(1, (wx*vx+wy*vy)/len2)) : 0
+              return { x: a.x + t*vx, y: a.y + t*vy }
+            }
+            const pA = project(s1a, s2a, s2b)
+            const pB = project(s1b, s2a, s2b)
+            const dA = Math.hypot(pA.x - s1a.x, pA.y - s1a.y)
+            const dB = Math.hypot(pB.x - s1b.x, pB.y - s1b.y)
+            const p = dA < dB ? pA : pB
+            const beforeSegCount = model.getAllSegments().length
+            const newIds = (model as any).subdivideSegment?.(seg2.id, p)
+            const afterSegCount = model.getAllSegments().length
+            if (newIds && afterSegCount > beforeSegCount) {
+              edits++
+              // Normalize topology and unify walls
+              ;(model as any).mergeNearbyNodes?.(Math.max(20, 0.5 * (wallsById.get(merge.wall1Id)?.thickness || 100)))
+              ;(model as any).unifyWallsByConnectivityOfType?.(wallsById.get(merge.wall1Id)?.type || 'layout')
+            }
+          })
+        })
+        refreshProximityMerges()
+        console.log('🧩 Geometric apply complete; edits:', edits)
+        onStatusMessage?.(`Applied geometric merges: ${edits}`)
+        // Force a full wall re-render to reflect any subdivisions
+        if (wallRendererRef.current && layers) {
+          const nmap = new Map()
+          model.getAllNodes().forEach(n => nmap.set(n.id, n))
+          model.getAllWalls().forEach(w => {
+            const segs = w.segmentIds.map(id => model.getSegment(id)).filter(Boolean) as any[]
+            wallRendererRef.current!.renderWall(w, segs, nmap, layers.wall)
+          })
+        }
+      } catch (err) {
+        console.error('Geometric merge error:', err)
+      }
+    }
     window.addEventListener('proximity-enabled-changed', onEnabled as any)
     window.addEventListener('proximity-threshold-changed', onThreshold as any)
     window.addEventListener('proximity-refresh', onRefresh)
+    window.addEventListener('proximity-apply-geometric', onApplyGeometric)
     return () => {
       window.removeEventListener('proximity-enabled-changed', onEnabled as any)
       window.removeEventListener('proximity-threshold-changed', onThreshold as any)
       window.removeEventListener('proximity-refresh', onRefresh)
+      window.removeEventListener('proximity-apply-geometric', onApplyGeometric)
     }
   }, [refreshProximityMerges, setProximityEnabled, setProximityThreshold, onStatusMessage])
 
