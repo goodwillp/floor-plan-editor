@@ -1,4 +1,6 @@
 import type { Point, WallTypeString } from './types'
+import { WALL_THICKNESS } from './types'
+import { getToleranceConfig } from './ToleranceConfig'
 import { FloorPlanModel } from './FloorPlanModel'
 
 /**
@@ -60,25 +62,64 @@ export class DrawingService {
     return false
   }
 
-  private findExistingNodeNear(point: Point, tolerance = 1e-4): string | null {
+  private findExistingNodeNear(point: Point, tolerance?: number): string | null {
+    const cfg = getToleranceConfig()
+    const dynamicTol = Math.max(cfg.nodeReuseMinPx, ((WALL_THICKNESS as any)[this.activeWallType] ?? 40) * cfg.nodeReuseMultiplier)
+    const tol = tolerance ?? dynamicTol
     const nodes = (this.model as any).getAllNodes?.() as any[] | undefined
     if (!nodes) return null
     for (const n of nodes) {
-      if (Math.hypot(n.x - point.x, n.y - point.y) <= tolerance) return n.id
+      if (Math.hypot(n.x - point.x, n.y - point.y) <= tol) return n.id
     }
     return null
   }
 
-  private findSegmentContainingPoint(point: Point, tolerance = 1e-4): string | null {
+  private findSegmentContainingPoint(point: Point, tolerance?: number): string | null {
+    const cfg = getToleranceConfig()
+    const dynamicTol = Math.max(cfg.projectionMinPx * 0.5, ((WALL_THICKNESS as any)[this.activeWallType] ?? 40) * (cfg.projectionMultiplier * 0.3))
+    const tol = tolerance ?? dynamicTol
     const segs = (this.model as any).getAllSegments?.() as any[] | undefined
     if (!segs) return null
     for (const s of segs) {
       const a = (this.model as any).getNode?.(s.startNodeId)
       const b = (this.model as any).getNode?.(s.endNodeId)
       if (!a || !b) continue
-      if (DrawingService.isPointOnSegment(point, a, b, tolerance)) return s.id
+      if (DrawingService.isPointOnSegment(point, a, b, tol)) return s.id
     }
     return null
+  }
+
+  /**
+   * Find the nearest segment to a point and return the segment id and the
+   * orthogonal projection point, if the perpendicular projection lies within
+   * the segment and the distance is within maxDistance.
+   */
+  private findSegmentNearPoint(point: Point, maxDistance?: number): { segId: string; projection: Point } | null {
+    const cfg = getToleranceConfig()
+    const fallback = ((WALL_THICKNESS as any)[this.activeWallType] ?? 40) * cfg.projectionMultiplier
+    const maxDist = Math.max(cfg.projectionMinPx, maxDistance ?? fallback)
+    const segs = (this.model as any).getAllSegments?.() as any[] | undefined
+    if (!segs) return null
+    let best: { segId: string; projection: Point; distance: number } | null = null
+    for (const s of segs) {
+      const a = (this.model as any).getNode?.(s.startNodeId)
+      const b = (this.model as any).getNode?.(s.endNodeId)
+      if (!a || !b) continue
+      const vx = b.x - a.x
+      const vy = b.y - a.y
+      const wx = point.x - a.x
+      const wy = point.y - a.y
+      const len2 = vx * vx + vy * vy
+      if (len2 <= 1e-9) continue
+      const t = Math.max(0, Math.min(1, (wx * vx + wy * vy) / len2))
+      const px = a.x + t * vx
+      const py = a.y + t * vy
+      const dist = Math.hypot(point.x - px, point.y - py)
+      if (dist <= maxDist) {
+        if (!best || dist < best.distance) best = { segId: s.id, projection: { x: px, y: py }, distance: dist }
+      }
+    }
+    return best ? { segId: best.segId, projection: best.projection } : null
   }
 
   constructor(model: FloorPlanModel) {
@@ -178,6 +219,17 @@ export class DrawingService {
               if (nodeId) startIdToUse = nodeId
             }
           }
+          // If not exactly on the segment, attach by proximity within half thickness
+          if (!startIdToUse) {
+          const prox = this.findSegmentNearPoint(startNode)
+            if (prox) {
+              const newIds = this.model.subdivideSegment(prox.segId, prox.projection)
+              if (newIds && newIds.length > 0) {
+                const nodeId = this.findExistingNodeNear(prox.projection)
+                if (nodeId) startIdToUse = nodeId
+              }
+            }
+          }
         }
 
         // If end lands on a segment, subdivide that segment to create a node
@@ -189,6 +241,17 @@ export class DrawingService {
             if (newIds && newIds.length > 0) {
               const nodeId = this.findExistingNodeNear(endNode)
               if (nodeId) endIdToUse = nodeId
+            }
+          }
+          // If not exactly on the segment, attach by proximity within half thickness
+          if (!endIdToUse) {
+          const prox = this.findSegmentNearPoint(endNode)
+            if (prox) {
+              const newIds = this.model.subdivideSegment(prox.segId, prox.projection)
+              if (newIds && newIds.length > 0) {
+                const nodeId = this.findExistingNodeNear(prox.projection)
+                if (nodeId) endIdToUse = nodeId
+              }
             }
           }
         }
@@ -204,6 +267,27 @@ export class DrawingService {
           // This subdivides existing segments and may also subdivide the new segment.
           const modifications = this.model.processIntersections(created.id)
           intersectionModifications.push(...modifications)
+
+          // After intersections, ensure we are connected to any very nearby nodes
+          const startNodeAfter = (this.model as any).getNode?.(created.startNodeId)
+          const endNodeAfter = (this.model as any).getNode?.(created.endNodeId)
+          const cfg2 = getToleranceConfig()
+          const reconnectTol = Math.max(cfg2.nodeReuseMinPx, ((WALL_THICKNESS as any)[this.activeWallType] ?? 40) * cfg2.nodeReuseMultiplier)
+          if (startNodeAfter) {
+            const nearExisting = this.findExistingNodeNear(startNodeAfter, reconnectTol)
+            if (nearExisting && nearExisting !== created.startNodeId) {
+              // Reassign start to the nearby node and clean up
+              ;(this.model as any).updateNode?.(created.startNodeId, (this.model as any).getNode(nearExisting).x, (this.model as any).getNode(nearExisting).y)
+              ;(this.model as any).mergeNearbyNodes?.(reconnectTol)
+            }
+          }
+          if (endNodeAfter) {
+            const nearExisting = this.findExistingNodeNear(endNodeAfter, reconnectTol)
+            if (nearExisting && nearExisting !== created.endNodeId) {
+              ;(this.model as any).updateNode?.(created.endNodeId, (this.model as any).getNode(nearExisting).x, (this.model as any).getNode(nearExisting).y)
+              ;(this.model as any).mergeNearbyNodes?.(reconnectTol)
+            }
+          }
 
           // If the just-created segment was subdivided, replace it in wall list
           const selfMods = modifications.filter(m => m.originalSegmentId === created.id)
@@ -242,6 +326,19 @@ export class DrawingService {
             const newWall = this.model.createWall(this.activeWallType, filteredIds)
             ;(this.model as any).mergeWalls?.(targetWallId, [newWall.id, ...Array.from(neighborWalls).filter(id => id !== targetWallId)])
             ;(this.model as any).unifyWallsByConnectivityOfType?.(this.activeWallType)
+            // Normalize topology after merge using wall-scale threshold
+            ;(this.model as any).mergeNearbyNodes?.(Math.max(getToleranceConfig().mergeNearbyMinPx, (WALL_THICKNESS as any)[this.activeWallType] * getToleranceConfig().mergeNearbyMultiplier))
+            try {
+              const snapshot = (this.model as any).getGraphSnapshot?.(10)
+              if (snapshot) {
+                console.log('🧭 Graph snapshot after merge-into-existing', {
+                  nodes: snapshot.nodes.length,
+                  segments: snapshot.segments.length,
+                  walls: snapshot.walls.length,
+                  duplicateNodeGroups: snapshot.duplicateNodeGroups,
+                })
+              }
+            } catch {}
             this.isDrawing = false
             this.currentPoints = []
             if (intersectionModifications.length > 0) {
@@ -258,6 +355,24 @@ export class DrawingService {
           this.activeWallType,
           filteredIds
         )
+
+        // Normalize topology: collapse near-duplicate nodes using wall-scale threshold
+        ;(this.model as any).mergeNearbyNodes?.(Math.max(getToleranceConfig().mergeNearbyMinPx, (WALL_THICKNESS as any)[this.activeWallType] * getToleranceConfig().mergeNearbyMultiplier))
+        // Ensure a single wall entity for connected components of the same type
+        ;(this.model as any).unifyWallsByConnectivityOfType?.(this.activeWallType)
+
+        // Debug: print graph snapshot after normalization to help diagnose duplicate nodes/merging
+        try {
+          const snapshot = (this.model as any).getGraphSnapshot?.(10)
+          if (snapshot) {
+            console.log('🧭 Graph snapshot after wall creation', {
+              nodes: snapshot.nodes.length,
+              segments: snapshot.segments.length,
+              walls: snapshot.walls.length,
+              duplicateNodeGroups: snapshot.duplicateNodeGroups,
+            })
+          }
+        } catch {}
 
         this.isDrawing = false
         this.currentPoints = []

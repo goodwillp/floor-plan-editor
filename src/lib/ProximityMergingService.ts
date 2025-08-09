@@ -85,6 +85,10 @@ export class ProximityMergingService {
    */
   updateProximityMerges(): void {
     const walls = this.model.getAllWalls()
+    // First pass: merge nodes that are within threshold to avoid duplicate nodes at junctions
+    try {
+      ;(this.model as any).mergeNearbyNodes?.(this.proximityThreshold)
+    } catch (_) {}
     const newMerges = new Map<string, ProximityMerge>()
 
     // Check all wall pairs for proximity

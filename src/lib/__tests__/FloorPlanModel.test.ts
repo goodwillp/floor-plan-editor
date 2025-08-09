@@ -464,4 +464,35 @@ describe('FloorPlanModel', () => {
       expect(updatedWall!.segmentIds).toHaveLength(0);
     });
   });
+
+  describe('Topology normalization', () => {
+    it('creates a single junction node with 3 connections when a new segment intersects an existing wall and nodes are near', () => {
+      const model = new FloorPlanModel()
+      // Initial polygon: 1 -> 2 -> 4 (two segments)
+      const n1 = model.createNode(0, 0)
+      const n2 = model.createNode(100, 0)
+      const n4 = model.createNode(120, 80)
+      const s12 = model.createSegment(n1.id, n2.id)!
+      const s24 = model.createSegment(n2.id, n4.id)!
+      model.createWall('layout', [s12.id, s24.id])
+
+      expect(model.getAllNodes().length).toBe(3)
+      expect(model.getConnectedSegments(n2.id).length).toBe(2)
+
+      // Second polyline: 5 -> 3 that passes close to n2 and intersects s24
+      const n5 = model.createNode(10, 10)
+      const n3 = model.createNode(100, 10)
+      const s53 = model.createSegment(n5.id, n3.id)!
+      model.createWall('layout', [s53.id])
+
+      // Process intersections and then merge nearby nodes within 12px
+      model.processIntersections(s53.id)
+      ;(model as any).mergeNearbyNodes(12)
+
+      // Find junction near original n2
+      const junction = model.getAllNodes().find(nd => Math.hypot(nd.x - 100, nd.y - 0) <= 12)!
+      expect(junction).toBeTruthy()
+      expect(model.getConnectedSegments(junction.id).length).toBe(3)
+    })
+  })
 });

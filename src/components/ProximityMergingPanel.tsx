@@ -49,9 +49,17 @@ export function ProximityMergingPanel({
   className
 }: ProximityMergingPanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [projectionMin, setProjectionMin] = useState(40)
+  const [projectionMul, setProjectionMul] = useState(1.2)
+  const [nodeReuseMin, setNodeReuseMin] = useState(30)
+  const [nodeReuseMul, setNodeReuseMul] = useState(0.5)
+  const [mergeMin, setMergeMin] = useState(10)
+  const [mergeMul, setMergeMul] = useState(0.5)
 
   const handleThresholdChange = (values: number[]) => {
-    onThresholdChange(values[0])
+    const val = values[0]
+    onThresholdChange(val)
+    try { window.dispatchEvent(new CustomEvent('proximity-threshold-changed', { detail: val })) } catch {}
   }
 
   return (
@@ -71,8 +79,8 @@ export function ProximityMergingPanel({
         </Button>
       </div>
 
-      {/* Main Controls */}
-      <div className="space-y-4">
+      {/* Main Controls (scrollable to keep content in view when expanded) */}
+      <div className="space-y-4 overflow-y-auto pr-1" style={{ maxHeight: '65vh' }}>
         {/* Enable/Disable Toggle */}
         <div className="flex items-center justify-between">
           <Label className="text-sm font-medium flex items-center gap-2">
@@ -81,7 +89,10 @@ export function ProximityMergingPanel({
           </Label>
           <Switch
             checked={isEnabled}
-            onCheckedChange={onEnabledChange}
+            onCheckedChange={(v) => {
+              onEnabledChange(v)
+              try { window.dispatchEvent(new CustomEvent('proximity-enabled-changed', { detail: v })) } catch {}
+            }}
           />
         </div>
 
@@ -94,14 +105,14 @@ export function ProximityMergingPanel({
             <Slider
               value={[proximityThreshold]}
               onValueChange={handleThresholdChange}
-              min={5}
-              max={50}
+              min={10}
+              max={200}
               step={1}
               className="w-full"
             />
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>5px</span>
-              <span>50px</span>
+              <span>10px</span>
+              <span>200px</span>
             </div>
           </div>
         )}
@@ -145,7 +156,7 @@ export function ProximityMergingPanel({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={onRefresh}
+                onClick={() => { onRefresh(); try { window.dispatchEvent(new Event('proximity-refresh')) } catch {} }}
                 className="flex-1"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -202,6 +213,52 @@ export function ProximityMergingPanel({
                       <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
                       <span>Different wall types</span>
                     </div>
+                  </div>
+                </div>
+
+                {/* Dynamic Tolerances for Layout snapping/merging */}
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <Label className="text-xs">Projection Min (px): {projectionMin}</Label>
+                    <Slider value={[projectionMin]} min={10} max={200} step={5} onValueChange={(v)=>setProjectionMin(v[0])} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Projection × Thickness: {projectionMul.toFixed(2)}</Label>
+                    <Slider value={[projectionMul]} min={0.2} max={3} step={0.1} onValueChange={(v)=>setProjectionMul(v[0])} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Node Reuse Min (px): {nodeReuseMin}</Label>
+                    <Slider value={[nodeReuseMin]} min={10} max={200} step={5} onValueChange={(v)=>setNodeReuseMin(v[0])} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Node Reuse × Thickness: {nodeReuseMul.toFixed(2)}</Label>
+                    <Slider value={[nodeReuseMul]} min={0.2} max={3} step={0.1} onValueChange={(v)=>setNodeReuseMul(v[0])} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Merge Nearby Min (px): {mergeMin}</Label>
+                    <Slider value={[mergeMin]} min={5} max={150} step={5} onValueChange={(v)=>setMergeMin(v[0])} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Merge Nearby × Thickness: {mergeMul.toFixed(2)}</Label>
+                    <Slider value={[mergeMul]} min={0.2} max={2} step={0.1} onValueChange={(v)=>setMergeMul(v[0])} />
+                  </div>
+                  <div className="col-span-2">
+                    <Button size="sm" className="w-full" onClick={()=>{
+                      try {
+                        const evt = new CustomEvent('tolerance-config-request-update', { detail: {
+                          projectionMinPx: projectionMin,
+                          projectionMultiplier: projectionMul,
+                          nodeReuseMinPx: nodeReuseMin,
+                          nodeReuseMultiplier: nodeReuseMul,
+                          mergeNearbyMinPx: mergeMin,
+                          mergeNearbyMultiplier: mergeMul,
+                        }})
+                        window.dispatchEvent(evt)
+                        console.log('⚙️ Tolerances applied', { projectionMin, projectionMul, nodeReuseMin, nodeReuseMul, mergeMin, mergeMul })
+                        // Ask for immediate recompute
+                        window.dispatchEvent(new Event('proximity-refresh'))
+                      } catch {}
+                    }}>Apply Tolerances</Button>
                   </div>
                 </div>
               </CardContent>

@@ -44,7 +44,7 @@ interface DrawingCanvasProps {
  * DrawingCanvas integrates wall drawing functionality with the PixiJS canvas
  * Requirements: 2.1, 6.4, 11.4, 14.1
  */
-export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
+export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({ 
   className,
   activeWallType,
   activeTool,
@@ -52,8 +52,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   wallsVisible = true,
   wallLayerVisibility = { layout: true, zone: true, area: true },
   wallLayerDebug = { layout: { guides: false, shell: false }, zone: { guides: false, shell: false }, area: { guides: false, shell: false } },
-  proximityMergingEnabled = false,
-  proximityThreshold = 15,
+  proximityMergingEnabled = true,
+  proximityThreshold = 120,
   onMouseMove,
   onWallCreated,
   onWallSelected,
@@ -138,7 +138,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
   const {
     activeMerges,
     mergeStats,
-    refreshMerges: refreshProximityMerges
+    refreshMerges: refreshProximityMerges,
+    setEnabled: setProximityEnabled,
+    setProximityThreshold
   } = useProximityMerging({
     model: modelRef.current,
     layers,
@@ -146,6 +148,47 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
     proximityThreshold,
     checkInterval: 200 // Check every 200ms
   })
+
+  // Listen for tolerance config updates from the ProximityMergingPanel advanced UI
+  useEffect(() => {
+    const handler = (e: CustomEvent) => {
+      try {
+        const { updateToleranceConfig } = require('@/lib/ToleranceConfig')
+        updateToleranceConfig(e.detail || {})
+      } catch {}
+    }
+    window.addEventListener('tolerance-config-request-update', handler as any)
+    return () => window.removeEventListener('tolerance-config-request-update', handler as any)
+  }, [])
+
+  // Keep canvas state in sync with panel controls
+  useEffect(() => {
+    const onEnabled = (e: CustomEvent) => {
+      try {
+        console.log('⚙️ Proximity enabled changed:', e.detail)
+        setProximityEnabled(e.detail === true)
+        refreshProximityMerges()
+        onStatusMessage?.('Proximity merging ' + (e.detail ? 'enabled' : 'disabled'))
+      } catch {}
+    }
+    const onThreshold = (e: CustomEvent) => {
+      try {
+        console.log('⚙️ Proximity threshold changed:', e.detail)
+        setProximityThreshold(e.detail)
+        refreshProximityMerges()
+        onStatusMessage?.('Proximity threshold: ' + e.detail + 'px')
+      } catch {}
+    }
+    const onRefresh = () => { console.log('🔄 Proximity refresh requested'); refreshProximityMerges(); onStatusMessage?.('Proximity merges refreshed') }
+    window.addEventListener('proximity-enabled-changed', onEnabled as any)
+    window.addEventListener('proximity-threshold-changed', onThreshold as any)
+    window.addEventListener('proximity-refresh', onRefresh)
+    return () => {
+      window.removeEventListener('proximity-enabled-changed', onEnabled as any)
+      window.removeEventListener('proximity-threshold-changed', onThreshold as any)
+      window.removeEventListener('proximity-refresh', onRefresh)
+    }
+  }, [refreshProximityMerges, setProximityEnabled, setProximityThreshold, onStatusMessage])
 
   // Grid system hook
   const {
@@ -476,6 +519,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           if (wall.type !== t || !wall.visible) return
           const half = wall.thickness / 2
           const rings: number[][][] = []
+          // Segment quads
           wall.segmentIds.forEach(segId => {
             const seg = modelRef.current.getSegment(segId)
             if (!seg) return
@@ -492,6 +536,58 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
             const p3 = [b.x - nx * half, b.y - ny * half]
             const p4 = [a.x - nx * half, a.y - ny * half]
             rings.push([p1, p2, p3, p4, p1])
+          })
+          // Node wedge joins to bridge at corners and avoid wrong vertices using miter intersection
+          const idToSeg = new Map(wall.segmentIds.map(id => {
+            const s = modelRef.current.getSegment(id)
+            return [id, s]
+          }))
+          const nodeToDirs = new Map<string, Array<{ nx: number; ny: number }>>()
+          wall.segmentIds.forEach(id => {
+            const seg = idToSeg.get(id)
+            if (!seg) return
+            const a = nodesMap.get(seg.startNodeId)
+            const b = nodesMap.get(seg.endNodeId)
+            if (!a || !b) return
+            const vx = b.x - a.x
+            const vy = b.y - a.y
+            const len = Math.hypot(vx, vy) || 1
+            const nx = -vy / len
+            const ny = vx / len
+            if (!nodeToDirs.has(a.id)) nodeToDirs.set(a.id, [])
+            if (!nodeToDirs.has(b.id)) nodeToDirs.set(b.id, [])
+            nodeToDirs.get(a.id)!.push({ nx, ny })
+            nodeToDirs.get(b.id)!.push({ nx, ny })
+          })
+          nodeToDirs.forEach((dirs, nodeId) => {
+            const n = nodesMap.get(nodeId)
+            if (!n || dirs.length < 2) return
+            const order = dirs.map((d, i) => ({ ang: Math.atan2(d.ny, d.nx), i })).sort((a, b) => a.ang - b.ang).map(o => o.i)
+            const sorted = order.map(i => dirs[i])
+            const intersect = (ax: number, ay: number, ux: number, uy: number, bx: number, by: number, vx: number, vy: number): [number, number] | null => {
+              const det = ux * (-vy) - uy * (-vx)
+              if (Math.abs(det) < 1e-6) return null
+              const dx = bx - ax
+              const dy = by - ay
+              const t = (dx * (-vy) - dy * (-vx)) / det
+              return [ax + t * ux, ay + t * uy]
+            }
+            for (let i = 0; i < sorted.length; i++) {
+              const d1 = sorted[i]
+              const d2 = sorted[(i + 1) % sorted.length]
+              const t1x = -d1.ny, t1y = d1.nx
+              const t2x = -d2.ny, t2y = d2.nx
+              const p1x = n.x + d1.nx * half
+              const p1y = n.y + d1.ny * half
+              const p2x = n.x + d2.nx * half
+              const p2y = n.y + d2.ny * half
+              const m = intersect(p1x, p1y, t1x, t1y, p2x, p2y, t2x, t2y)
+              if (m) {
+                rings.push([[p1x, p1y], m, [p2x, p2y], [p1x, p1y]])
+              } else {
+                rings.push([[p1x, p1y], [p2x, p2y], [n.x + (d1.nx + d2.nx) * half * 0.5, n.y + (d1.ny + d2.ny) * half * 0.5], [p1x, p1y]])
+              }
+            }
           })
           if (rings.length === 0) return
           let unionResult: any = null

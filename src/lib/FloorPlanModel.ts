@@ -835,6 +835,92 @@ export class FloorPlanModel {
     }
 
   /**
+   * Backwards-compatible alias used by some tests/utilities
+   */
+  getSegmentsByWall(wallId: string): Segment[] {
+    return this.getSegmentsForWall(wallId)
+  }
+
+  /**
+   * Return a lightweight snapshot of the current graph for debugging.
+   * Includes nodes, segments, walls, adjacency and near-duplicate node clusters.
+   */
+  getGraphSnapshot(thresholdPx: number = 10): {
+    nodes: Array<{ id: string; x: number; y: number; degree: number; connectedSegments: string[] }>
+    segments: Array<{ id: string; startNodeId: string; endNodeId: string; length: number; angle: number; wallId?: string }>
+    walls: Array<{ id: string; type: WallTypeString; thickness: number; segmentCount: number }>
+    adjacency: Record<string, string[]>
+    duplicateNodeGroups: Array<{ centroid: { x: number; y: number }; nodeIds: string[] }>
+  } {
+    // Nodes
+    const nodes: Array<{ id: string; x: number; y: number; degree: number; connectedSegments: string[] }> = []
+    this.nodes.forEach(n => {
+      nodes.push({ id: n.id, x: n.x, y: n.y, degree: n.connectedSegments.length, connectedSegments: [...n.connectedSegments] })
+    })
+
+    // Segments
+    const segments: Array<{ id: string; startNodeId: string; endNodeId: string; length: number; angle: number; wallId?: string }> = []
+    this.segments.forEach(s => {
+      segments.push({ id: s.id, startNodeId: s.startNodeId, endNodeId: s.endNodeId, length: s.length, angle: s.angle, wallId: s.wallId })
+    })
+
+    // Walls
+    const walls: Array<{ id: string; type: WallTypeString; thickness: number; segmentCount: number }> = []
+    this.walls.forEach(w => {
+      walls.push({ id: w.id, type: w.type, thickness: w.thickness, segmentCount: w.segmentIds.length })
+    })
+
+    // Adjacency
+    const adjacency: Record<string, string[]> = {}
+    this.nodes.forEach(n => adjacency[n.id] = [])
+    this.segments.forEach(s => {
+      const a = this.nodes.get(s.startNodeId)
+      const b = this.nodes.get(s.endNodeId)
+      if (a && b) {
+        adjacency[a.id].push(b.id)
+        adjacency[b.id].push(a.id)
+      }
+    })
+
+    // Duplicate clusters (union-find over nodes within threshold)
+    const nodeArr = Array.from(this.nodes.values())
+    const parent = new Map<string, string>()
+    const find = (x: string): string => {
+      const p = parent.get(x) || x
+      if (p === x) return p
+      const r = find(p)
+      parent.set(x, r)
+      return r
+    }
+    const union = (a: string, b: string) => {
+      const ra = find(a), rb = find(b)
+      if (ra !== rb) parent.set(ra, rb)
+    }
+    nodeArr.forEach(n => parent.set(n.id, n.id))
+    for (let i = 0; i < nodeArr.length; i++) {
+      for (let j = i + 1; j < nodeArr.length; j++) {
+        const ni = nodeArr[i], nj = nodeArr[j]
+        if (this.calculateDistance(ni, nj) <= thresholdPx) union(ni.id, nj.id)
+      }
+    }
+    const groupMap = new Map<string, Array<{ id: string; x: number; y: number }>>()
+    nodeArr.forEach(n => {
+      const r = find(n.id)
+      if (!groupMap.has(r)) groupMap.set(r, [])
+      groupMap.get(r)!.push({ id: n.id, x: n.x, y: n.y })
+    })
+    const duplicateNodeGroups: Array<{ centroid: { x: number; y: number }; nodeIds: string[] }> = []
+    groupMap.forEach(list => {
+      if (list.length <= 1) return
+      const cx = list.reduce((acc, v) => acc + v.x, 0) / list.length
+      const cy = list.reduce((acc, v) => acc + v.y, 0) / list.length
+      duplicateNodeGroups.push({ centroid: { x: cx, y: cy }, nodeIds: list.map(v => v.id) })
+    })
+
+    return { nodes, segments, walls, adjacency, duplicateNodeGroups }
+  }
+
+  /**
    * Get all segments for a wall
    */
   getSegmentsForWall(wallId: string): Segment[] {
@@ -1056,6 +1142,75 @@ export class FloorPlanModel {
         this.walls.clear();
         this.nextId = 1;
     }
+
+  /**
+   * Merge nodes that are closer than the provided threshold (in pixels).
+   * Reassigns all connected segments of the removed nodes to the kept node and
+   * performs cleanup for collinear chains that may result.
+   */
+  mergeNearbyNodes(thresholdPx: number): void {
+    const nodes = Array.from(this.nodes.values())
+    const toKeep = new Set<string>()
+    const toRemove = new Set<string>()
+    // Simple O(n^2) pass is acceptable for current editor scales
+    for (let i = 0; i < nodes.length; i++) {
+      const a = nodes[i]
+      if (toRemove.has(a.id)) continue
+      for (let j = i + 1; j < nodes.length; j++) {
+        const b = nodes[j]
+        if (toRemove.has(b.id)) continue
+        const d = this.calculateDistance(a, b)
+        if (d <= thresholdPx) {
+          // Merge b into a (keep a)
+          this.reassignNodeReferences(b.id, a.id)
+          toRemove.add(b.id)
+          toKeep.add(a.id)
+        }
+      }
+    }
+    // Remove nodes flagged for deletion
+    toRemove.forEach(id => this.nodes.delete(id))
+    // Cleanup possible collinear intermediates repeatedly until stable
+    let changed = true
+    let guard = 0
+    while (changed && guard < 50) {
+      changed = false
+      guard++
+      this.nodes.forEach(n => {
+        const res = this.performNodeCleanup(n.id)
+        if (res.cleaned) changed = true
+      })
+    }
+  }
+
+  /**
+   * Reassign all segment references from oldNodeId to newNodeId.
+   * Also removes degenerate zero-length segments and duplicate segments.
+   */
+  private reassignNodeReferences(oldNodeId: string, newNodeId: string): void {
+    if (oldNodeId === newNodeId) return
+    const oldNode = this.nodes.get(oldNodeId)
+    const newNode = this.nodes.get(newNodeId)
+    if (!oldNode || !newNode) return
+    const affectedSegments = [...oldNode.connectedSegments]
+    affectedSegments.forEach(segId => {
+      const s = this.segments.get(segId)
+      if (!s) return
+      if (s.startNodeId === oldNodeId) s.startNodeId = newNodeId
+      if (s.endNodeId === oldNodeId) s.endNodeId = newNodeId
+      // Remove zero-length segments
+      if (s.startNodeId === s.endNodeId) {
+        this.deleteSegment(segId)
+        return
+      }
+      // Update new node connection list
+      if (!newNode.connectedSegments.includes(segId)) {
+        newNode.connectedSegments.push(segId)
+      }
+    })
+    // Remove references from old node and delete it
+    oldNode.connectedSegments.length = 0
+  }
 
     /**
      * Get data summary for debugging

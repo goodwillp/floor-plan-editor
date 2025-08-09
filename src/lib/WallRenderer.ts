@@ -97,24 +97,109 @@ export class WallRenderer {
     const graphics = new PIXI.Graphics()
     const style = this.getWallStyle(wall.type)
 
-    // Build union of segment quads into one polygon
+    // Build union of segment quads plus wedge joins into one polygon
     const half = wall.thickness / 2
     const rings: number[][][] = []
+    // Compute node degrees to detect spurs at junctions
+    const degree = new Map<string, number>()
+    wall.segmentIds.forEach(id => {
+      const s = segments.find(ss => ss.id === id)
+      if (!s) return
+      degree.set(s.startNodeId, (degree.get(s.startNodeId) || 0) + 1)
+      degree.set(s.endNodeId, (degree.get(s.endNodeId) || 0) + 1)
+    })
+    // Segment quads (with spur trimming at junctions)
     for (const seg of segments) {
+      const a0 = nodes.get(seg.startNodeId)
+      const b0 = nodes.get(seg.endNodeId)
+      if (!a0 || !b0) continue
+      let ax = a0.x, ay = a0.y
+      let bx = b0.x, by = b0.y
+      const degA = degree.get(seg.startNodeId) || 0
+      const degB = degree.get(seg.endNodeId) || 0
+      const vx0 = b0.x - a0.x
+      const vy0 = b0.y - a0.y
+      const len0 = Math.hypot(vx0, vy0) || 1
+      const tx = vx0 / len0
+      const ty = vy0 / len0
+      // Trim spur endpoint when attached to a junction
+      if (degA > 2 && degB === 1) {
+        ax += tx * half
+        ay += ty * half
+      } else if (degB > 2 && degA === 1) {
+        bx -= tx * half
+        by -= ty * half
+      }
+      const vx = bx - ax
+      const vy = by - ay
+      const len = Math.hypot(vx, vy) || 1
+      const nx = -vy / len
+      const ny = vx / len
+      const p1 = [ax + nx * half, ay + ny * half]
+      const p2 = [bx + nx * half, by + ny * half]
+      const p3 = [bx - nx * half, by - ny * half]
+      const p4 = [ax - nx * half, ay - ny * half]
+      rings.push([p1, p2, p3, p4, p1])
+    }
+    // Node wedge joins to avoid gaps and wrong vertices at corners
+    const idToSegment = new Map(segments.map(s => [s.id, s]))
+    const nodeToDirs = new Map<string, Array<{ nx: number; ny: number }>>()
+    wall.segmentIds.forEach(id => {
+      const seg = idToSegment.get(id)
+      if (!seg) return
       const a = nodes.get(seg.startNodeId)
       const b = nodes.get(seg.endNodeId)
-      if (!a || !b) continue
+      if (!a || !b) return
       const vx = b.x - a.x
       const vy = b.y - a.y
       const len = Math.hypot(vx, vy) || 1
       const nx = -vy / len
       const ny = vx / len
-      const p1 = [a.x + nx * half, a.y + ny * half]
-      const p2 = [b.x + nx * half, b.y + ny * half]
-      const p3 = [b.x - nx * half, b.y - ny * half]
-      const p4 = [a.x - nx * half, a.y - ny * half]
-      rings.push([p1, p2, p3, p4, p1])
+      if (!nodeToDirs.has(a.id)) nodeToDirs.set(a.id, [])
+      if (!nodeToDirs.has(b.id)) nodeToDirs.set(b.id, [])
+      nodeToDirs.get(a.id)!.push({ nx, ny })
+      nodeToDirs.get(b.id)!.push({ nx, ny })
+    })
+    // Helper to compute intersection of two parametric lines p = a + t*u and q = b + s*v
+    const intersect = (ax: number, ay: number, ux: number, uy: number, bx: number, by: number, vx: number, vy: number): [number, number] | null => {
+      const det = ux * (-vy) - uy * (-vx)
+      if (Math.abs(det) < 1e-6) return null
+      // Solve a + t*u = b + s*v
+      const dx = bx - ax
+      const dy = by - ay
+      const t = (dx * (-vy) - dy * (-vx)) / det
+      return [ax + t * ux, ay + t * uy]
     }
+    nodeToDirs.forEach((dirs, nodeId) => {
+      const n = nodes.get(nodeId)
+      if (!n) return
+      if (dirs.length < 2) return
+      // For each adjacent pair around the node, build a miter triangle using intersection of offset lines
+      const order = dirs
+        .map((d, i) => ({ ang: Math.atan2(d.ny, d.nx), i }))
+        .sort((a, b) => a.ang - b.ang)
+        .map(o => o.i)
+      const sorted = order.map(i => dirs[i])
+      for (let i = 0; i < sorted.length; i++) {
+        const d1 = sorted[i]
+        const d2 = sorted[(i + 1) % sorted.length]
+        // Tangent directions are perpendicular to normals
+        const t1x = -d1.ny, t1y = d1.nx
+        const t2x = -d2.ny, t2y = d2.nx
+        // Offset points on the 'outside' side corresponding to +normal
+        const p1x = n.x + d1.nx * half
+        const p1y = n.y + d1.ny * half
+        const p2x = n.x + d2.nx * half
+        const p2y = n.y + d2.ny * half
+        const m = intersect(p1x, p1y, t1x, t1y, p2x, p2y, t2x, t2y)
+        if (m) {
+          rings.push([[p1x, p1y], m, [p2x, p2y], [p1x, p1y]])
+        } else {
+          // Parallel; fall back to simple triangle without center node
+          rings.push([[p1x, p1y], [p2x, p2y], [n.x + (d1.nx + d2.nx) * half * 0.5, n.y + (d1.ny + d2.ny) * half * 0.5], [p1x, p1y]])
+        }
+      }
+    })
     let unionResult: any = null
     for (const r of rings) {
       const poly = [r]
@@ -395,21 +480,99 @@ export class WallRenderer {
     const style = this.getWallStyle(wall.type)
     const half = wall.thickness / 2
     const rings2: number[][][] = []
+    // Compute node degrees
+    const degree2 = new Map<string, number>()
+    wall.segmentIds.forEach(id => {
+      const s = segments.find(ss => ss.id === id)
+      if (!s) return
+      degree2.set(s.startNodeId, (degree2.get(s.startNodeId) || 0) + 1)
+      degree2.set(s.endNodeId, (degree2.get(s.endNodeId) || 0) + 1)
+    })
+    // Segment quads with spur trimming
     for (const seg of segments) {
+      const a0 = nodes.get(seg.startNodeId)
+      const b0 = nodes.get(seg.endNodeId)
+      if (!a0 || !b0) continue
+      let ax = a0.x, ay = a0.y
+      let bx = b0.x, by = b0.y
+      const degA = degree2.get(seg.startNodeId) || 0
+      const degB = degree2.get(seg.endNodeId) || 0
+      const vx0 = b0.x - a0.x
+      const vy0 = b0.y - a0.y
+      const len0 = Math.hypot(vx0, vy0) || 1
+      const tx = vx0 / len0
+      const ty = vy0 / len0
+      if (degA > 2 && degB === 1) {
+        ax += tx * half
+        ay += ty * half
+      } else if (degB > 2 && degA === 1) {
+        bx -= tx * half
+        by -= ty * half
+      }
+      const vx = bx - ax
+      const vy = by - ay
+      const len = Math.hypot(vx, vy) || 1
+      const nx = -vy / len
+      const ny = vx / len
+      const p1 = [ax + nx * half, ay + ny * half]
+      const p2 = [bx + nx * half, by + ny * half]
+      const p3 = [bx - nx * half, by - ny * half]
+      const p4 = [ax - nx * half, ay - ny * half]
+      rings2.push([p1, p2, p3, p4, p1])
+    }
+    // Node wedge joins
+    const idToSegment2 = new Map(segments.map(s => [s.id, s]))
+    const nodeToDirs2 = new Map<string, Array<{ nx: number; ny: number }>>()
+    wall.segmentIds.forEach(id => {
+      const seg = idToSegment2.get(id)
+      if (!seg) return
       const a = nodes.get(seg.startNodeId)
       const b = nodes.get(seg.endNodeId)
-      if (!a || !b) continue
+      if (!a || !b) return
       const vx = b.x - a.x
       const vy = b.y - a.y
       const len = Math.hypot(vx, vy) || 1
       const nx = -vy / len
       const ny = vx / len
-      const p1 = [a.x + nx * half, a.y + ny * half]
-      const p2 = [b.x + nx * half, b.y + ny * half]
-      const p3 = [b.x - nx * half, b.y - ny * half]
-      const p4 = [a.x - nx * half, a.y - ny * half]
-      rings2.push([p1, p2, p3, p4, p1])
+      if (!nodeToDirs2.has(a.id)) nodeToDirs2.set(a.id, [])
+      if (!nodeToDirs2.has(b.id)) nodeToDirs2.set(b.id, [])
+      nodeToDirs2.get(a.id)!.push({ nx, ny })
+      nodeToDirs2.get(b.id)!.push({ nx, ny })
+    })
+    const intersect2 = (ax: number, ay: number, ux: number, uy: number, bx: number, by: number, vx: number, vy: number): [number, number] | null => {
+      const det = ux * (-vy) - uy * (-vx)
+      if (Math.abs(det) < 1e-6) return null
+      const dx = bx - ax
+      const dy = by - ay
+      const t = (dx * (-vy) - dy * (-vx)) / det
+      return [ax + t * ux, ay + t * uy]
     }
+    nodeToDirs2.forEach((dirs, nodeId) => {
+      const n = nodes.get(nodeId)
+      if (!n) return
+      if (dirs.length < 2) return
+      const order = dirs
+        .map((d, i) => ({ ang: Math.atan2(d.ny, d.nx), i }))
+        .sort((a, b) => a.ang - b.ang)
+        .map(o => o.i)
+      const sorted = order.map(i => dirs[i])
+      for (let i = 0; i < sorted.length; i++) {
+        const d1 = sorted[i]
+        const d2 = sorted[(i + 1) % sorted.length]
+        const t1x = -d1.ny, t1y = d1.nx
+        const t2x = -d2.ny, t2y = d2.nx
+        const p1x = n.x + d1.nx * half
+        const p1y = n.y + d1.ny * half
+        const p2x = n.x + d2.nx * half
+        const p2y = n.y + d2.ny * half
+        const m = intersect2(p1x, p1y, t1x, t1y, p2x, p2y, t2x, t2y)
+        if (m) {
+          rings2.push([[p1x, p1y], m, [p2x, p2y], [p1x, p1y]])
+        } else {
+          rings2.push([[p1x, p1y], [p2x, p2y], [n.x + (d1.nx + d2.nx) * half * 0.5, n.y + (d1.ny + d2.ny) * half * 0.5], [p1x, p1y]])
+        }
+      }
+    })
     let union2: any = null
     for (const r of rings2) {
       const poly = [r]
