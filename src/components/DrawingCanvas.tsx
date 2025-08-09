@@ -602,6 +602,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           if (prev && isClose(prev[0], prev[1], curr[0], curr[1], tol * 0.5)) continue
           // Remove vertex if almost on the line between prev and next
           if (prev && next && pointLineDistance(curr[0], curr[1], prev[0], prev[1], next[0], next[1]) <= tol) continue
+          // Remove short edges created by numeric noise (prev->curr or curr->next very small)
+          const len1 = prev ? Math.hypot(curr[0] - prev[0], curr[1] - prev[1]) : Infinity
+          const len2 = next ? Math.hypot(next[0] - curr[0], next[1] - curr[1]) : Infinity
+          if (len1 <= tol * 1.2 || len2 <= tol * 1.2) continue
           out.push(curr)
         }
         points = out
@@ -611,6 +615,127 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
       // Close ring
       points.push([points[0][0], points[0][1]])
       return points
+    }
+    const filterVerticesNearJunctions = (ring: number[][], junctions: Array<{x: number; y: number}>, tol: number): number[][] => {
+      if (ring.length <= 4 || junctions.length === 0) return ring
+      const pts = ring.slice(0, ring.length - 1)
+      const keep: number[][] = []
+      for (const p of pts) {
+        let near = false
+        for (const j of junctions) {
+          if (Math.hypot(p[0] - j.x, p[1] - j.y) <= tol) { near = true; break }
+        }
+        if (!near) keep.push(p)
+      }
+      if (keep.length < 3) return ring
+      keep.push([keep[0][0], keep[0][1]])
+      return keep
+    }
+    const snapVerticesToMiterApex = (
+      ring: number[][],
+      apexes: Array<{ x: number; y: number }>,
+      snapTol: number
+    ): number[][] => {
+      if (ring.length <= 4 || apexes.length === 0) return ring
+      const pts = ring.slice(0, ring.length - 1)
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i]
+        for (const a of apexes) {
+          if (Math.hypot(p[0] - a.x, p[1] - a.y) <= snapTol) {
+            pts[i] = [a.x, a.y]
+            break
+          }
+        }
+      }
+      // Deduplicate consecutive identical (after snapping)
+      const out: number[][] = []
+      for (const p of pts) {
+        if (out.length === 0) { out.push(p); continue }
+        const q = out[out.length - 1]
+        if (Math.hypot(p[0] - q[0], p[1] - q[1]) > 1e-3) out.push(p)
+      }
+      if (out.length < 3) return ring
+      out.push([out[0][0], out[0][1]])
+      return out
+    }
+    const mergeCloseVertices = (ring: number[][], tol: number): number[][] => {
+      if (ring.length <= 4) return ring
+      let pts = ring.slice(0, ring.length - 1)
+      const maxIter = pts.length
+      let changed = true
+      let iter = 0
+      const intersectLines = (ax: number, ay: number, bx: number, by: number, cx: number, cy: number, dx: number, dy: number): [number, number] | null => {
+        const r1x = bx - ax, r1y = by - ay
+        const r2x = dx - cx, r2y = dy - cy
+        const det = r1x * (-r2y) - r1y * (-r2x)
+        if (Math.abs(det) < 1e-6) return null
+        const vx = cx - ax, vy = cy - ay
+        const t = (vx * (-r2y) - vy * (-r2x)) / det
+        return [ax + t * r1x, ay + t * r1y]
+      }
+      while (changed && iter++ < maxIter) {
+        changed = false
+        const n = pts.length
+        for (let i = 0; i < n; i++) {
+          const a = pts[(i - 1 + n) % n]
+          const b = pts[i]
+          const c = pts[(i + 1) % n]
+          if (Math.hypot(b[0] - c[0], b[1] - c[1]) <= tol) {
+            const d = pts[(i + 2) % n]
+            const I = intersectLines(a[0], a[1], b[0], b[1], c[0], c[1], d[0], d[1])
+            const merged: [number, number] = I || [(b[0] + c[0]) / 2, (b[1] + c[1]) / 2]
+            // Replace b with merged, drop c
+            pts[i] = [merged[0], merged[1]]
+            pts.splice((i + 1) % n, 1)
+            changed = true
+            break
+          }
+        }
+      }
+      if (pts.length < 3) return ring
+      pts.push([pts[0][0], pts[0][1]])
+      return pts
+    }
+    const collapseApexClusters = (
+      ring: number[][],
+      apexes: Array<{ x: number; y: number }>,
+      tol: number
+    ): number[][] => {
+      if (ring.length <= 4 || apexes.length === 0) return ring
+      let pts = ring.slice(0, ring.length - 1)
+      for (const a of apexes) {
+        // Collect indices within tol from apex
+        const nearIdx: number[] = []
+        for (let i = 0; i < pts.length; i++) {
+          const p = pts[i]
+          if (Math.hypot(p[0] - a.x, p[1] - a.y) <= tol) nearIdx.push(i)
+        }
+        if (nearIdx.length >= 2) {
+          const keep: number[][] = []
+          let collapsed = false
+          for (let i = 0; i < pts.length; i++) {
+            if (nearIdx.includes(i)) {
+              if (!collapsed) {
+                keep.push([a.x, a.y])
+                collapsed = true
+              }
+              // skip others in cluster
+              continue
+            }
+            keep.push(pts[i])
+          }
+          pts = keep
+        }
+      }
+      // Deduplicate consecutive equals
+      const out: number[][] = []
+      for (const p of pts) {
+        if (out.length === 0) { out.push(p); continue }
+        const q = out[out.length - 1]
+        if (Math.hypot(p[0] - q[0], p[1] - q[1]) > 1e-3) out.push(p)
+      }
+      out.push([out[0][0], out[0][1]])
+      return out
     }
 
     for (const t of types) {
@@ -714,6 +839,14 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           if (wall.type !== t || !wall.visible) return
           const half = wall.thickness / 2
           const rings: number[][][] = []
+          // Compute node degrees within this wall to allow endpoint trimming at junctions
+          const degree = new Map<string, number>()
+          wall.segmentIds.forEach(id => {
+            const s = modelRef.current.getSegment(id)
+            if (!s) return
+            degree.set(s.startNodeId, (degree.get(s.startNodeId) || 0) + 1)
+            degree.set(s.endNodeId, (degree.get(s.endNodeId) || 0) + 1)
+          })
           // Segment quads
           wall.segmentIds.forEach(segId => {
             const seg = modelRef.current.getSegment(segId)
@@ -721,19 +854,27 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
             const a = nodesMap.get(seg.startNodeId)
             const b = nodesMap.get(seg.endNodeId)
             if (!a || !b) return
-            const vx = b.x - a.x
-            const vy = b.y - a.y
+            let ax = a.x, ay = a.y
+            let bx = b.x, by = b.y
+            const vx = bx - ax
+            const vy = by - ay
             const len = Math.hypot(vx, vy) || 1
+            const tx = vx / len
+            const ty = vy / len
+            // Small inward trim at both ends for clean miters when degree==2 (elbow)
+            const trim = Math.min(half * 0.35, 18)
+            if ((degree.get(seg.startNodeId) || 0) === 2) { ax += tx * trim; ay += ty * trim }
+            if ((degree.get(seg.endNodeId) || 0) === 2) { bx -= tx * trim; by -= ty * trim }
             const nx = -vy / len
             const ny = vx / len
-            const p1 = [a.x + nx * half, a.y + ny * half]
-            const p2 = [b.x + nx * half, b.y + ny * half]
-            const p3 = [b.x - nx * half, b.y - ny * half]
-            const p4 = [a.x - nx * half, a.y - ny * half]
+            const p1 = [ax + nx * half, ay + ny * half]
+            const p2 = [bx + nx * half, by + ny * half]
+            const p3 = [bx - nx * half, by - ny * half]
+            const p4 = [ax - nx * half, ay - ny * half]
             rings.push([p1, p2, p3, p4, p1])
             if ((wallLayerDebug as any)[t]?.shellLabels) {
-              const midX = (a.x + b.x) / 2
-              const midY = (a.y + b.y) / 2
+              const midX = (ax + bx) / 2
+              const midY = (ay + by) / 2
               const text = new PIXI.Text(`S = ${String(seg.id)}`, {
                 fill: shellTextColor,
                 fontSize: SHELL_SEGMENT_FONT,
@@ -809,8 +950,47 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({
           const multipoly: number[][][][] = isMulti ? unionResult : [unionResult]
           multipoly.forEach((polygon) => {
             polygon.forEach((ring, ringIdx) => {
-              // Clean up nearly-collinear and duplicate vertices to avoid spurious labels
-              ring = simplifyRing(ring, Math.max(2, half * 0.15))
+              // Clean up nearly-collinear/duplicate vertices; use stronger tolerance near junctions
+              ring = simplifyRing(ring, Math.max(2, half * 0.7))
+              // Remove vertices that land directly on elbow guide node centers (degree==2)
+              const junctionPositions: Array<{x: number; y: number}> = []
+              const apexes: Array<{ x: number; y: number }> = []
+              degree.forEach((deg, nid) => {
+                if (deg === 2) {
+                  const n = nodesMap.get(nid)
+                  if (n) {
+                    junctionPositions.push({ x: n.x, y: n.y })
+                    // Compute miter apex from adjacent normals (using nodeToDirs)
+                    const dirs = nodeToDirs.get(nid) || []
+                    if (dirs.length === 2) {
+                      const d1 = dirs[0]
+                      const d2 = dirs[1]
+                      const t1x = -d1.ny, t1y = d1.nx
+                      const t2x = -d2.ny, t2y = d2.nx
+                      const p1x = n.x + d1.nx * half
+                      const p1y = n.y + d1.ny * half
+                      const p2x = n.x + d2.nx * half
+                      const p2y = n.y + d2.ny * half
+                      const m = ((): [number, number] | null => {
+                        const det = t1x * (-t2y) - t1y * (-t2x)
+                        if (Math.abs(det) < 1e-6) return null
+                        const dx = p2x - p1x
+                        const dy = p2y - p1y
+                        const t = (dx * (-t2y) - dy * (-t2x)) / det
+                        return [p1x + t * t1x, p1y + t * t1y]
+                      })()
+                      if (m) apexes.push({ x: m[0], y: m[1] })
+                    }
+                  }
+                }
+              })
+              ring = filterVerticesNearJunctions(ring, junctionPositions, Math.max(2, half * 1.0))
+              // Snap remaining nearby vertices to computed miter apex and deduplicate
+              ring = snapVerticesToMiterApex(ring, apexes, Math.max(2, half * 1.2))
+              // Finally, collapse any remaining near-duplicate consecutive vertices using line intersection
+              ring = mergeCloseVertices(ring, Math.max(2, half * 1.0))
+              // And force one-and-only-one vertex for each apex cluster
+              ring = collapseApexClusters(ring, apexes, Math.max(2, half * 1.2))
               const [x0, y0] = ring[0]
               outline.moveTo(x0, y0)
               for (let i = 1; i < ring.length; i++) {
