@@ -1,0 +1,486 @@
+/* Contextual Help System Styles */
+
+.contextual-tooltip {
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  border-radius: 8px;
+  padding: 0;
+  max-width: 400px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  font-size: 14px;
+  line-height: 1.4;
+  backdrop-filter: blur(10px);
+}
+
+.contextual-tooltip::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 8px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.9);
+}
+
+.tooltip-content {
+  padding: 16px;
+}
+
+.tooltip-content h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.tooltip-content p {
+  margin: 0 0 12px 0;
+  color: #e0e0e0;
+}
+
+.tooltip-content ul {
+  margin: 8px 0;
+  padding-left: 20px;
+  color: #e0e0e0;
+}
+
+.tooltip-content li {
+  margin: 4px 0;
+}
+
+.tooltip-content strong {
+  color: #ffffff;
+}
+
+.help-tip {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 4px;
+  padding: 8px;
+  margin: 12px 0;
+  color: #bfdbfe;
+}
+
+.help-warning {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 4px;
+  padding: 8px;
+  margin: 12px 0;
+  color: #fde68a;
+}
+
+.quality-indicator {
+  display: flex;
+  align-items: center;
+  margin: 8px 0;
+  color: #e0e0e0;
+}
+
+.quality-indicator .indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+  display: inline-block;
+}
+
+.quality-indicator .indicator.green {
+  background-color: #10b981;
+}
+
+.quality-indicator .indicator.yellow {
+  background-color: #f59e0b;
+}
+
+.quality-indicator .indicator.orange {
+  background-color: #f97316;
+}
+
+.quality-indicator .indicator.red {
+  background-color: #ef4444;
+}
+
+.tooltip-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tooltip-action {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tooltip-action.primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.tooltip-action.primary:hover {
+  background: #2563eb;
+}
+
+.tooltip-action.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.tooltip-action.secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Guided Workflow Overlay */
+.guided-workflow-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 20px;
+}
+
+.workflow-panel {
+  background: white;
+  border-radius: 12px;
+  width: 400px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.workflow-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 20px 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.workflow-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.close-button:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.workflow-progress {
+  padding: 16px 20px;
+  background: #f9fafb;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.workflow-content {
+  padding: 20px;
+}
+
+.workflow-content h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.workflow-content p {
+  margin: 0;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.workflow-actions {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 20px 20px 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.workflow-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 80px;
+}
+
+.workflow-button.primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.workflow-button.primary:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.workflow-button.secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.workflow-button.secondary:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.workflow-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Help Menu */
+.help-menu {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9998;
+}
+
+.help-menu-trigger {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-menu-trigger:hover {
+  background: #2563eb;
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
+}
+
+.help-menu-dropdown {
+  position: absolute;
+  bottom: 60px;
+  right: 0;
+  width: 320px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  padding: 16px;
+  animation: slideInUp 0.2s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.help-section {
+  margin-bottom: 20px;
+}
+
+.help-section:last-child {
+  margin-bottom: 0;
+}
+
+.help-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.help-section button {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  margin-bottom: 4px;
+}
+
+.help-section button:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.workflow-category {
+  margin-bottom: 16px;
+}
+
+.workflow-category h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.workflow-item {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  color: #4b5563;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  margin-bottom: 2px;
+}
+
+.workflow-item:hover {
+  background: #f9fafb;
+  color: #111827;
+}
+
+/* Guided Highlight Effect */
+.guided-highlight {
+  position: relative;
+  z-index: 9997;
+}
+
+.guided-highlight::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+  animation: pulse 2s infinite;
+  pointer-events: none;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .guided-workflow-overlay {
+    padding: 10px;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+  
+  .workflow-panel {
+    width: 100%;
+    max-height: 90vh;
+  }
+  
+  .help-menu-dropdown {
+    width: 280px;
+    right: -20px;
+  }
+  
+  .contextual-tooltip {
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .help-menu-dropdown {
+    width: 260px;
+    right: -40px;
+  }
+  
+  .contextual-tooltip {
+    max-width: 250px;
+  }
+}

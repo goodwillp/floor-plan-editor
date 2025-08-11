@@ -1,0 +1,43 @@
+{
+  "database": {
+    "type": "postgres",
+    "host": "localhost",
+    "port": 5432,
+    "username": "bim_user",
+    "password": "your_secure_password",
+    "database": "bim_walls",
+    "ssl": true,
+    "synchronize": false,
+    "logging": ["error", "warn"],
+    "entities": ["src/lib/bim/entities/*.ts"],
+    "migrations": ["src/lib/bim/migrations/postgres/*.ts"],
+    "maxConnections": 20,
+    "connectionTimeout": 30000
+  },
+  "performance": {
+    "maxConcurrentOperations": 8,
+    "batchSize": 1000,
+    "enableParallelProcessing": true,
+    "memoryThreshold": 0.8,
+    "operationTimeout": 30000
+  },
+  "cache": {
+    "enabled": true,
+    "maxSize": 10000,
+    "ttl": 3600000,
+    "enablePersistentCache": true,
+    "cacheDirectory": "./cache"
+  },
+  "tolerance": {
+    "baseTolerance": 0.0001,
+    "adaptiveToleranceEnabled": true,
+    "documentPrecision": 0.00001,
+    "maxToleranceAdjustment": 100.0
+  },
+  "visualization": {
+    "enableAdvancedVisualization": true,
+    "maxRenderComplexity": 10000,
+    "enableLevelOfDetail": true,
+    "renderCacheSize": 5000
+  }
+}

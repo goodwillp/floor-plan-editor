@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIM Wall System API Playground</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .playground {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            background: #4a5568;
+            color: white;
+            padding: 15px 20px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        .panel-content {
+            padding: 20px;
+        }
+        
+        .code-editor {
+            width: 100%;
+            height: 400px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            padding: 15px;
+            background: #1a202c;
+            color: #e2e8f0;
+            resize: vertical;
+        }
+        
+        .output {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            min-height: 200px;
+            white-space: pre-wrap;
+            overflow-y: auto;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        .btn:hover {
+            background: #3182ce;
+        }
+        
+        .btn-success {
+            background: #48bb78;
+        }
+        
+        .btn-success:hover {
+            background: #38a169;
+        }
+        
+        .btn-warning {
+            background: #ed8936;
+        }
+        
+        .btn-warning:hover {
+            background: #dd6b20;
+        }
+        
+        .examples {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        
+        .examples h2 {
+            margin-bottom: 20px;
+            color: #2d3748;
+        }
+        
+        .example-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .example-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .example-card:hover {
+            border-color: #4299e1;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .example-title {
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+        
+        .example-description {
+            color: #718096;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .example-code {
+            background: #f7fafc;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            color: #2d3748;
+            overflow-x: auto;
+        }
+        
+        .visualization {
+            width: 100%;
+            height: 300px;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            background: white;
+            margin-top: 15px;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        
+        .status-success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+        
+        .status-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+        
+        .status-warning {
+            background: #fefcbf;
+            color: #744210;
+            border: 1px solid #f6e05e;
+        }
+        
+        @media (max-width: 768px) {
+            .playground {
+                grid-template-columns: 1fr;
+            }
+            
+            .example-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏗️ BIM Wall System API Playground</h1>
+            <p>Interactive documentation and testing environment for the BIM Wall System</p>
+        </div>
+        
+        <div class="playground">
+            <div class="panel">
+                <div class="panel-header">
+                    📝 Code Editor
+                </div>
+                <div class="panel-content">
+                    <div class="controls">
+                        <button class="btn" onclick="runCode()">▶️ Run Code</button>
+                        <button class="btn btn-success" onclick="validateCode()">✅ Validate</button>
+                        <button class="btn btn-warning" onclick="clearOutput()">🗑️ Clear</button>
+                        <select id="exampleSelect" onchange="loadExample()" class="btn">
+                            <option value="">Select Example...</option>
+                            <option value="simple-wall">Simple Wall</option>
+                            <option value="l-junction">L-Junction</option>
+                            <option value="complex-intersection">Complex Intersection</option>
+                            <option value="curved-wall">Curved Wall</option>
+                            <option value="performance-test">Performance Test</option>
+                        </select>
+                    </div>
+                    <textarea id="codeEditor" class="code-editor" placeholder="// Enter your BIM Wall System code here...
+import { BIMWallSystem, CurveType } from '@/lib/bim';
+
+const bimSystem = new BIMWallSystem();
+
+// Create a simple wall
+const wall = await bimSystem.createWall({
+  baseline: {
+    points: [
+      { x: 0, y: 0 },
+      { x: 1000, y: 0 }
+    ],
+    type: CurveType.POLYLINE
+  },
+  thickness: 200,
+  wallType: 'Layout'
+});
+
+console.log('Wall created:', wall.id);
+console.log('Wall length:', wall.bimGeometry?.wallSolid.baseline.length);"></textarea>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-header">
+                    📊 Output & Visualization
+                </div>
+                <div class="panel-content">
+                    <div id="status" class="status" style="display: none;"></div>
+                    <div id="output" class="output">// Output will appear here when you run code...</div>
+                    <canvas id="visualization" class="visualization"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="examples">
+            <h2>📚 API Examples</h2>
+            <div class="example-grid">
+                <div class="example-card" onclick="loadExampleCode('simple-wall')">
+                    <div class="example-title">Simple Wall Creation</div>
+                    <div class="example-description">Create a basic straight wall with BIM precision</div>
+                    <div class="example-code">const wall = await bimSystem.createWall({...})</div>
+                </div>
+                
+                <div class="example-card" onclick="loadExampleCode('intersection')">
+                    <div class="example-title">Intersection Resolution</div>
+                    <div class="example-description">Resolve T-junctions and L-junctions automatically</div>
+                    <div class="example-code">const result = await bimSystem.resolveIntersections([...])</div>
+                </div>
+                
+                <div class="example-card" onclick="loadExampleCode('mode-switching')">
+                    <div class="example-title">Mode Switching</div>
+                    <div class="example-description">Switch between basic and BIM modes seamlessly</div>
+                    <div class="example-code">const result = await bimSystem.switchToBIMMode(walls)</div>
+                </div>
+                
+                <div class="example-card" onclick="loadExampleCode('quality-validation')">
+                    <div class="example-title">Quality Validation</div>
+                    <div class="example-description">Validate geometric quality and get metrics</div>
+                    <div class="example-code">const validation = await bimSystem.validateGeometry(walls)</div>
+                </div>
+                
+                <div class="example-card" onclick="loadExampleCode('performance-monitoring')">
+                    <div class="example-title">Performance Monitoring</div>
+                    <div class="example-description">Monitor system performance and optimize</div>
+                    <div class="example-code">const metrics = bimSystem.getPerformanceMetrics()</div>
+                </div>
+                
+                <div class="example-card" onclick="loadExampleCode('error-handling')">
+                    <div class="example-title">Error Handling</div>
+                    <div class="example-description">Handle geometric errors gracefully</div>
+                    <div class="example-code">try { ... } catch (error) { ... }</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Mock BIM Wall System for demonstration
+        class MockBIMWallSystem {
+            constructor(config = {}) {
+                this.config = config;
+                this.walls = new Map();
+                this.wallCounter = 0;
+            }
+            
+            async createWall(definition) {
+                const wallId = `wall-${++this.wallCounter}`;
+                const wall = {
+                    id: wallId,
+                    ...definition,
+                    bimGeometry: {
+                        wallSolid: {
+                            baseline: {
+                                length: this.calculateLength(definition.baseline.points)
+                            }
+                        },
+                        qualityMetrics: {
+                            geometricAccuracy: 0.95,
+                            topologicalConsistency: 0.98
+                        }
+                    }
+                };
+                
+                this.walls.set(wallId, wall);
+                return wall;
+            }
+            
+            async resolveIntersections(walls) {
+                return {
+                    success: true,
+                    intersectionCount: Math.floor(walls.length / 2),
+                    qualityMetrics: {
+                        geometricAccuracy: 0.92
+                    },
+                    processingTime: Math.random() * 100 + 50
+                };
+            }
+            
+            async switchToBIMMode(walls) {
+                return {
+                    success: true,
+                    convertedWalls: walls.map(w => w.id),
+                    failedWalls: [],
+                    preservedData: true,
+                    warnings: []
+                };
+            }
+            
+            async validateGeometry(walls) {
+                return {
+                    isValid: Math.random() > 0.2,
+                    issues: Math.random() > 0.5 ? [] : [
+                        { type: 'sliver_face', description: 'Small sliver face detected' }
+                    ],
+                    qualityScore: Math.random() * 0.3 + 0.7
+                };
+            }
+            
+            getPerformanceMetrics() {
+                return {
+                    averageOperationTime: Math.random() * 50 + 10,
+                    memoryUsage: Math.random() * 100 + 50,
+                    cacheHitRate: Math.random() * 30 + 70
+                };
+            }
+            
+            calculateLength(points) {
+                let length = 0;
+                for (let i = 0; i < points.length - 1; i++) {
+                    const dx = points[i + 1].x - points[i].x;
+                    const dy = points[i + 1].y - points[i].y;
+                    length += Math.sqrt(dx * dx + dy * dy);
+                }
+                return length;
+            }
+        }
+        
+        // Example code templates
+        const examples = {
+            'simple-wall': `// Create a simple straight wall
+import { BIMWallSystem, CurveType } from '@/lib/bim';
+
+const bimSystem = new BIMWallSystem();
+
+const wall = await bimSystem.createWall({
+  baseline: {
+    points: [
+      { x: 0, y: 0 },
+      { x: 1000, y: 0 }
+    ],
+    type: CurveType.POLYLINE
+  },
+  thickness: 200,
+  wallType: 'Layout'
+});
+
+console.log('Wall created:', wall.id);
+console.log('Wall length:', wall.bimGeometry?.wallSolid.baseline.length, 'mm');
+console.log('Quality score:', wall.bimGeometry?.qualityMetrics.geometricAccuracy);`,
+
+            'l-junction': `// Create L-shaped wall with automatic corner handling
+const lWall = await bimSystem.createWall({
+  baseline: {
+    points: [
+      { x: 0, y: 0 },
+      { x: 1000, y: 0 },    // Horizontal segment
+      { x: 1000, y: 800 }   // Vertical segment
+    ],
+    type: CurveType.POLYLINE
+  },
+  thickness: 200,
+  wallType: 'Layout'
+});
+
+console.log('L-wall created with automatic corner handling');
+console.log('Quality metrics:', lWall.bimGeometry?.qualityMetrics);`,
+
+            'complex-intersection': `// Resolve complex wall intersections
+const wall1 = await bimSystem.createWall({
+  baseline: {
+    points: [{ x: 0, y: 0 }, { x: 2000, y: 0 }],
+    type: CurveType.POLYLINE
+  },
+  thickness: 200,
+  wallType: 'Layout'
+});
+
+const wall2 = await bimSystem.createWall({
+  baseline: {
+    points: [{ x: 1000, y: -500 }, { x: 1000, y: 500 }],
+    type: CurveType.POLYLINE
+  },
+  thickness: 200,
+  wallType: 'Layout'
+});
+
+const intersections = await bimSystem.resolveIntersections([wall1, wall2]);
+console.log('Resolved', intersections.intersectionCount, 'intersections');
+console.log('Processing time:', intersections.processingTime, 'ms');`,
+
+            'curved-wall': `// Create a curved wall using Bezier curve
+const curvedWall = await bimSystem.createWall({
+  baseline: {
+    points: [
+      { x: 0, y: 0 },        // Start point
+      { x: 500, y: -200 },   // Control point 1
+      { x: 1500, y: 200 },   // Control point 2
+      { x: 2000, y: 0 }      // End point
+    ],
+    type: CurveType.BEZIER
+  },
+  thickness: 180,
+  wallType: 'Layout'
+});
+
+console.log('Curved wall created');
+console.log('Baseline length:', curvedWall.bimGeometry?.wallSolid.baseline.length, 'mm');`,
+
+            'performance-test': `// Performance monitoring example
+const startTime = performance.now();
+
+// Create multiple walls
+const walls = [];
+for (let i = 0; i < 10; i++) {
+  const wall = await bimSystem.createWall({
+    baseline: {
+      points: [
+        { x: i * 1000, y: 0 },
+        { x: i * 1000 + 800, y: 0 }
+      ],
+      type: CurveType.POLYLINE
+    },
+    thickness: 200,
+    wallType: 'Layout'
+  });
+  walls.push(wall);
+}
+
+const creationTime = performance.now() - startTime;
+console.log('Created', walls.length, 'walls in', creationTime.toFixed(2), 'ms');
+
+// Get performance metrics
+const metrics = bimSystem.getPerformanceMetrics();
+console.log('Performance metrics:');
+console.log('- Average operation time:', metrics.averageOperationTime.toFixed(2), 'ms');
+console.log('- Memory usage:', metrics.memoryUsage.toFixed(2), 'MB');
+console.log('- Cache hit rate:', metrics.cacheHitRate.toFixed(1), '%');`
+        };
+        
+        // Global BIM system instance for playground
+        window.bimSystem = new MockBIMWallSystem();
+        window.CurveType = {
+            POLYLINE: 'polyline',
+            BEZIER: 'bezier',
+            SPLINE: 'spline',
+            ARC: 'arc'
+        };
+        
+        function showStatus(message, type = 'success') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status status-${type}`;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+        
+        async function runCode() {
+            const code = document.getElementById('codeEditor').value;
+            const output = document.getElementById('output');
+            
+            try {
+                showStatus('Running code...', 'warning');
+                
+                // Capture console output
+                const originalLog = console.log;
+                const logs = [];
+                console.log = (...args) => {
+                    logs.push(args.map(arg => 
+                        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                    ).join(' '));
+                };
+                
+                // Execute code in async context
+                const asyncFunction = new Function('bimSystem', 'CurveType', `
+                    return (async () => {
+                        ${code}
+                    })();
+                `);
+                
+                await asyncFunction(window.bimSystem, window.CurveType);
+                
+                // Restore console.log
+                console.log = originalLog;
+                
+                // Display output
+                output.textContent = logs.length > 0 ? logs.join('\n') : '// Code executed successfully (no output)';
+                showStatus('Code executed successfully!', 'success');
+                
+                // Update visualization
+                updateVisualization();
+                
+            } catch (error) {
+                output.textContent = `Error: ${error.message}\n\nStack trace:\n${error.stack}`;
+                showStatus('Code execution failed!', 'error');
+            }
+        }
+        
+        function validateCode() {
+            const code = document.getElementById('codeEditor').value;
+            const output = document.getElementById('output');
+            
+            // Simple validation checks
+            const issues = [];
+            
+            if (!code.trim()) {
+                issues.push('Code editor is empty');
+            }
+            
+            if (!code.includes('bimSystem')) {
+                issues.push('Code should use the bimSystem instance');
+            }
+            
+            if (code.includes('console.log') && !code.includes('await')) {
+                issues.push('Consider using await for async operations');
+            }
+            
+            if (issues.length === 0) {
+                output.textContent = '✅ Code validation passed!\n\nNo issues found. Code looks good to run.';
+                showStatus('Validation passed!', 'success');
+            } else {
+                output.textContent = '⚠️ Validation issues found:\n\n' + issues.map(issue => `• ${issue}`).join('\n');
+                showStatus('Validation found issues', 'warning');
+            }
+        }
+        
+        function clearOutput() {
+            document.getElementById('output').textContent = '// Output cleared...';
+            const canvas = document.getElementById('visualization');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            showStatus('Output cleared', 'success');
+        }
+        
+        function loadExample() {
+            const select = document.getElementById('exampleSelect');
+            const exampleKey = select.value;
+            
+            if (exampleKey && examples[exampleKey]) {
+                document.getElementById('codeEditor').value = examples[exampleKey];
+                showStatus(`Loaded ${exampleKey} example`, 'success');
+            }
+        }
+        
+        function loadExampleCode(exampleKey) {
+            if (examples[exampleKey]) {
+                document.getElementById('codeEditor').value = examples[exampleKey];
+                showStatus(`Loaded ${exampleKey} example`, 'success');
+            }
+        }
+        
+        function updateVisualization() {
+            const canvas = document.getElementById('visualization');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw coordinate system
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1;
+            
+            // Grid
+            for (let x = 0; x < canvas.width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            
+            for (let y = 0; y < canvas.height; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // Draw walls from the BIM system
+            ctx.strokeStyle = '#4299e1';
+            ctx.lineWidth = 3;
+            
+            window.bimSystem.walls.forEach(wall => {
+                if (wall.baseline && wall.baseline.points) {
+                    ctx.beginPath();
+                    const points = wall.baseline.points;
+                    
+                    // Scale points to fit canvas
+                    const scaleX = canvas.width / 2500;
+                    const scaleY = canvas.height / 1500;
+                    const offsetX = 50;
+                    const offsetY = 50;
+                    
+                    ctx.moveTo(
+                        points[0].x * scaleX + offsetX,
+                        points[0].y * scaleY + offsetY
+                    );
+                    
+                    for (let i = 1; i < points.length; i++) {
+                        ctx.lineTo(
+                            points[i].x * scaleX + offsetX,
+                            points[i].y * scaleY + offsetY
+                        );
+                    }
+                    
+                    ctx.stroke();
+                    
+                    // Draw wall thickness representation
+                    ctx.strokeStyle = '#a0aec0';
+                    ctx.lineWidth = Math.max(1, (wall.thickness || 200) * scaleX / 50);
+                    ctx.stroke();
+                }
+            });
+            
+            // Add legend
+            ctx.fillStyle = '#2d3748';
+            ctx.font = '12px Arial';
+            ctx.fillText('Visualization: Blue lines represent wall baselines', 10, canvas.height - 10);
+        }
+        
+        // Initialize with first example
+        document.addEventListener('DOMContentLoaded', () => {
+            loadExampleCode('simple-wall');
+            updateVisualization();
+        });
+    </script>
+</body>
+</html>

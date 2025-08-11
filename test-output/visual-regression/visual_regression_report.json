@@ -1,0 +1,26 @@
+{
+  "totalTests": 2,
+  "passedTests": 2,
+  "failedTests": 0,
+  "averageDifference": 0,
+  "maxDifference": 0,
+  "timestamp": "2025-08-11T12:55:09.489Z",
+  "results": [
+    {
+      "testName": "Basic Wall Rendering",
+      "passed": true,
+      "differencePercentage": 0,
+      "errors": [
+        "No reference image found, created new reference"
+      ]
+    },
+    {
+      "testName": "Offset Curves Visualization",
+      "passed": true,
+      "differencePercentage": 0,
+      "errors": [
+        "No reference image found, created new reference"
+      ]
+    }
+  ]
+}

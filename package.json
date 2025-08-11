@@ -17,7 +17,11 @@
     "test:visual": "vitest --run --config vitest.visual.config.ts",
     "test:summary": "tsx src/test/test-summary.ts",
     "test:validate": "tsx src/test/validate-tests.ts",
-    "test:all": "npm run test:coverage && npm run test:visual && npm run test:summary && npm run test:validate"
+    "test:all": "npm run test:coverage && npm run test:visual && npm run test:summary && npm run test:validate",
+    "config:validate": "node scripts/validate-config.js",
+    "config:validate:dev": "node scripts/validate-config.js --env development",
+    "config:validate:prod": "node scripts/validate-config.js --env production --strict",
+    "config:validate:report": "node scripts/validate-config.js --report --output config-report.json"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.14",
@@ -29,6 +33,8 @@
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-switch": "^1.2.5",
     "@radix-ui/react-tooltip": "^1.0.7",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.2.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "lucide-react": "^0.536.0",
