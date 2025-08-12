@@ -1,10 +1,16 @@
-# Use Node.js 24 as base image
-FROM node:24-alpine AS base
+# Use Debian-based Node.js 24 to support native builds (better-sqlite3)
+FROM node:24-bookworm-slim AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
+# Install build tools for native modules (better-sqlite3)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Copy package files
@@ -14,11 +20,19 @@ RUN npm ci --legacy-peer-deps
 
 # Rebuild the source code only when needed
 FROM base AS builder
+# Install build tools in builder as well (in case postinstall/native rebuilds occur)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build the application (production build without strict type checking)
+# Build the application (production build)
 RUN npm run build:prod
 
 # Production image, copy all the files and run the app
@@ -27,15 +41,15 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser --system --uid 1001 nextjs
 
 # Copy the built application
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./package.json
 
 # Install serve to serve the static files
-RUN npm install -g serve
+RUN npm install -g serve@14
 
 USER nextjs
 
