@@ -135,7 +135,7 @@ export class CacheEffectivenessMonitor {
         hotKeys: [],
         coldKeys: [],
         accessFrequency: new Map(),
-        temporalPattern: [],
+        temporalPattern: [] as any,
         recommendations: []
       };
     }
@@ -534,8 +534,16 @@ export class CacheEffectivenessMonitor {
    * Update cache configuration
    */
   updateCacheConfig(cacheType: string, config: Partial<CacheConfig>): void {
-    const existing = this.cacheConfigs.get(cacheType) || {};
-    this.cacheConfigs.set(cacheType, { ...existing, ...config });
+    const existing = this.cacheConfigs.get(cacheType);
+    const merged: CacheConfig = {
+      maxSize: (existing?.maxSize ?? 0),
+      avgEntrySize: (existing?.avgEntrySize ?? 0),
+      ttl: (existing?.ttl ?? 0),
+    };
+    if (config.maxSize !== undefined) merged.maxSize = config.maxSize;
+    if (config.avgEntrySize !== undefined) merged.avgEntrySize = config.avgEntrySize;
+    if (config.ttl !== undefined) merged.ttl = config.ttl;
+    this.cacheConfigs.set(cacheType, merged);
   }
 }
 

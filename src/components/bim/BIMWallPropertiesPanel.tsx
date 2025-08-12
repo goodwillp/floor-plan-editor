@@ -372,8 +372,9 @@ export const BIMWallPropertiesPanel: React.FC<BIMWallPropertiesPanelProps> = ({
     
     // Get join type from BIM geometry if available
     const getJoinType = (wall: UnifiedWallData): OffsetJoinType => {
-      if (wall.bimGeometry?.wallSolid.joinTypes.size > 0) {
-        return Array.from(wall.bimGeometry.wallSolid.joinTypes.values())[0];
+      const jt = wall.bimGeometry?.wallSolid?.joinTypes;
+      if (jt && jt.size > 0) {
+        return Array.from(jt.values())[0];
       }
       return OffsetJoinType.MITER; // default
     };

@@ -1,6 +1,6 @@
 import { Curve } from '../geometry/Curve';
-import { BIMPoint } from '../geometry/BIMPoint';
-import { Vector2D } from '../geometry/Vector2D';
+import { BIMPoint, BIMPointImpl } from '../geometry/BIMPoint';
+import { Vector2DImpl } from '../geometry/Vector2D';
 import { WallSolid } from '../geometry/WallSolid';
 import { GeometricError, GeometricErrorType, ErrorSeverity } from './GeometricError';
 
@@ -313,8 +313,8 @@ export class EdgeCaseDetector {
       const p2 = curve.points[i];
       const p3 = curve.points[i + 1];
 
-      const v1 = new Vector2D(p2.x - p1.x, p2.y - p1.y);
-      const v2 = new Vector2D(p3.x - p2.x, p3.y - p2.y);
+      const v1 = new Vector2DImpl(p2.x - p1.x, p2.y - p1.y);
+      const v2 = new Vector2DImpl(p3.x - p2.x, p3.y - p2.y);
 
       const angle = this.calculateAngleBetweenVectors(v1, v2);
 
@@ -470,15 +470,17 @@ export class EdgeCaseDetector {
 
     // Check if intersection is within both segments
     if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
-      return {
-        id: `intersection_${Date.now()}`,
-        x: x1 + t * (x2 - x1),
-        y: y1 + t * (y2 - y1),
-        tolerance: this.config.selfIntersectionTolerance,
-        creationMethod: 'segment_intersection',
-        accuracy: 1.0,
-        validated: true
-      };
+      return new BIMPointImpl(
+        x1 + t * (x2 - x1),
+        y1 + t * (y2 - y1),
+        {
+          id: `intersection_${Date.now()}`,
+          tolerance: this.config.selfIntersectionTolerance,
+          creationMethod: 'segment_intersection',
+          accuracy: 1.0,
+          validated: true
+        }
+      );
     }
 
     return null;
@@ -487,7 +489,7 @@ export class EdgeCaseDetector {
   /**
    * Calculate angle between two vectors
    */
-  private calculateAngleBetweenVectors(v1: Vector2D, v2: Vector2D): number {
+  private calculateAngleBetweenVectors(v1: any, v2: any): number {
     const dot = v1.dot(v2);
     const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
     const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);

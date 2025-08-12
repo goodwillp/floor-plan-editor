@@ -311,8 +311,8 @@ export class MigrationTestSuite {
             );
           }
 
-        } catch (validationError) {
-          warnings.push(`Accuracy validation failed: ${validationError.message}`);
+      } catch (validationError) {
+          warnings.push(`Accuracy validation failed: ${validationError instanceof Error ? validationError.message : String(validationError)}`);
         }
       }
 
@@ -333,7 +333,7 @@ export class MigrationTestSuite {
     } catch (error) {
       const executionTime = performance.now() - startTime;
       
-      if (error.message === 'Test timeout') {
+      if (error instanceof Error && error.message === 'Test timeout') {
         return {
           scenarioName: scenario.name,
           success: false,
@@ -345,7 +345,7 @@ export class MigrationTestSuite {
         };
       }
 
-      errors.push(`Test execution failed: ${error.message}`);
+      errors.push(`Test execution failed: ${error instanceof Error ? error.message : String(error)}`);
       
       return {
         scenarioName: scenario.name,

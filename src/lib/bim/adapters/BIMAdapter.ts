@@ -11,7 +11,7 @@ import { UnifiedWallData } from '../data/UnifiedWallData';
 import { GeometryConverter } from './GeometryConverter';
 import { WallSolidImpl } from '../geometry/WallSolid';
 import { Curve } from '../geometry/Curve';
-import { BIMPoint } from '../geometry/BIMPoint';
+import { BIMPoint, BIMPointImpl } from '../geometry/BIMPoint';
 import { CurveType } from '../types/BIMTypes';
 import { Wall, Segment, Node } from '../../types';
 import { QualityMetrics } from '../types/QualityMetrics';
@@ -504,40 +504,24 @@ export class BIMAdapter implements IBIMAdapter {
         const startNode = nodeMap.get(segment.startNodeId);
         
         if (startNode && (i === 0 || points.length === 0)) {
-          points.push({
+          points.push(new BIMPointImpl(startNode.x, startNode.y, {
             id: startNode.id,
-            x: startNode.x,
-            y: startNode.y,
             tolerance: this.conversionTolerance,
             creationMethod: 'legacy_conversion',
             accuracy: 1.0,
-            validated: true,
-            distanceTo: function(other) { 
-              return Math.sqrt((other.x - this.x) ** 2 + (other.y - this.y) ** 2); 
-            },
-            equals: function(other, tolerance = 1e-6) { 
-              return this.distanceTo(other) <= tolerance; 
-            }
-          });
+            validated: true
+          }));
         }
         
         const endNode = nodeMap.get(segment.endNodeId);
         if (endNode) {
-          points.push({
+          points.push(new BIMPointImpl(endNode.x, endNode.y, {
             id: endNode.id,
-            x: endNode.x,
-            y: endNode.y,
             tolerance: this.conversionTolerance,
             creationMethod: 'legacy_conversion',
             accuracy: 1.0,
-            validated: true,
-            distanceTo: function(other) { 
-              return Math.sqrt((other.x - this.x) ** 2 + (other.y - this.y) ** 2); 
-            },
-            equals: function(other, tolerance = 1e-6) { 
-              return this.distanceTo(other) <= tolerance; 
-            }
-          });
+            validated: true
+          }));
         }
       }
 

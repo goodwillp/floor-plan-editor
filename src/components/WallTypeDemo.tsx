@@ -45,8 +45,8 @@ export function WallTypeDemo() {
     }
   }, [])
 
-  const handleWallTypeChange = (type: WallTypeString) => {
-    setActiveWallType(type)
+  const handleWallTypeChange = (type: WallTypeString | null) => {
+    setActiveWallType(type ?? 'layout')
     console.log(`Selected wall type: ${type} (${type === 'layout' ? '350mm' : type === 'zone' ? '250mm' : '150mm'})`)
   }
 
@@ -60,7 +60,7 @@ export function WallTypeDemo() {
     console.log(`Grid visibility: ${!gridVisible}`)
   }
 
-  const handleReferenceImageLoad = () => {
+  const handleReferenceImageLoad = async (_file: File) => {
     console.log('Reference image load requested')
   }
 

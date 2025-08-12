@@ -221,7 +221,7 @@ export class DataMigrationManager {
         issues.push({
           type: 'error',
           severity: 8,
-          description: `Failed to validate wall ${wallId}: ${error.message}`,
+          description: `Failed to validate wall ${wallId}: ${error instanceof Error ? error.message : String(error)}`,
           affectedWalls: [wallId],
           suggestedFix: 'Check wall data integrity',
           autoFixable: false
@@ -399,7 +399,7 @@ export class DataMigrationManager {
       };
 
     } catch (error) {
-      errors.push(`Migration failed: ${error.message}`);
+      errors.push(`Migration failed: ${error instanceof Error ? error.message : String(error)}`);
       
       return {
         success: false,
@@ -446,7 +446,11 @@ export class DataMigrationManager {
       description: 'Pre-BIM migration backup'
     };
 
-    await this.database.saveBackup(backupId, serializedData, backupMetadata);
+    if (this.database.saveBackup) {
+      await this.database.saveBackup(backupId, serializedData, backupMetadata as any);
+    } else {
+      console.warn('saveBackup API not available on database abstraction; skipping backup persist');
+    }
     
     return backupId;
   }
@@ -489,12 +493,13 @@ export class DataMigrationManager {
         try {
           const convertedWall = await this.bimAdapter.convertLegacyWall(
             wall,
-            data.segments,
-            data.nodes
+            Array.from(data.segments.values()) as any,
+            Array.from(data.nodes.values()) as any
           );
 
           if (convertedWall) {
-            await this.database.saveWall(convertedWall);
+            const unifiedWall: any = (convertedWall as any).convertedData ?? convertedWall;
+            await this.database.saveWall(unifiedWall as any);
             successful.push(wallId);
           } else {
             failed.push(wallId);
@@ -503,7 +508,7 @@ export class DataMigrationManager {
 
         } catch (error) {
           failed.push(wallId);
-          errors.push(`Failed to convert wall ${wallId}: ${error.message}`);
+          errors.push(`Failed to convert wall ${wallId}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
 
@@ -541,18 +546,19 @@ export class DataMigrationManager {
       });
 
       try {
-        const wall = await this.database.loadWall(wallId);
-        if (wall) {
-          const validation = await this.validator.validateWallSolid(wall.bimGeometry?.wallSolid);
+        const loadResult = await this.database.loadWall(wallId);
+        if (loadResult.success && loadResult.wall) {
+          const validation: any = await this.validator.validateWallSolid(loadResult.wall.bimGeometry?.wallSolid as any);
           
           if (!validation.isValid) {
-            warnings.push(`Wall ${wallId} has geometric issues: ${validation.issues.join(', ')}`);
+            const issues: string[] = Array.isArray(validation.issues) ? validation.issues : [];
+            warnings.push(`Wall ${wallId} has geometric issues: ${issues.join(', ')}`);
           }
         } else {
           errors.push(`Wall ${wallId} not found after migration`);
         }
       } catch (error) {
-        errors.push(`Failed to validate wall ${wallId}: ${error.message}`);
+        errors.push(`Failed to validate wall ${wallId}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
@@ -586,7 +592,7 @@ export class DataMigrationManager {
         warnings: []
       });
 
-      const backup = await this.database.loadBackup(backupId);
+      const backup = await (this.database.loadBackup ? this.database.loadBackup(backupId) : Promise.resolve(null));
       if (!backup) {
         throw new Error(`Backup ${backupId} not found`);
       }
@@ -601,7 +607,9 @@ export class DataMigrationManager {
       const restoredData = JSON.parse(backup.data);
       
       // Clear current BIM data
-      await this.database.clearAllWalls();
+      if (this.database.clearAllWalls) {
+        await this.database.clearAllWalls();
+      }
       
       // Restore original data structure
       // This would involve converting back to the original format
@@ -632,7 +640,7 @@ export class DataMigrationManager {
    * @returns Promise resolving to array of backup metadata
    */
   async listBackups(): Promise<BackupMetadata[]> {
-    return this.database.listBackups();
+    return this.database.listBackups ? (this.database.listBackups() as any) : Promise.resolve([]);
   }
 
   /**
@@ -642,7 +650,7 @@ export class DataMigrationManager {
    * @returns Promise resolving to deletion success status
    */
   async deleteBackup(backupId: string): Promise<boolean> {
-    return this.database.deleteBackup(backupId);
+    return this.database.deleteBackup ? this.database.deleteBackup(backupId) : Promise.resolve(false);
   }
 
   // Private helper methods

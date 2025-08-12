@@ -233,7 +233,7 @@ export class DatabaseSchema {
       try {
         this.db.loadExtension('mod_spatialite');
         console.log('Spatial extension loaded successfully');
-      } catch (error) {
+      } catch (_error) {
         console.warn('Spatial extension not available, using basic spatial indexing');
       }
 
@@ -243,7 +243,8 @@ export class DatabaseSchema {
         await this.applyMigration(1);
       }
     } catch (error) {
-      throw new Error(`Failed to initialize database schema: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to initialize database schema: ${message}`);
     }
   }
 
@@ -253,7 +254,7 @@ export class DatabaseSchema {
   async getCurrentVersion(): Promise<number> {
     try {
       const stmt = this.db.prepare('SELECT MAX(version) as version FROM schema_version');
-      const result = stmt.get();
+      const result = stmt.get() as { version?: number } | undefined;
       return result?.version || 0;
     } catch (error) {
       return 0; // Schema version table doesn't exist yet
@@ -293,7 +294,8 @@ export class DatabaseSchema {
           await this.applyMigration(version);
           appliedMigrations.push(version);
         } catch (error) {
-          errors.push(`Failed to apply migration ${version}: ${error.message}`);
+          const message = error instanceof Error ? error.message : String(error);
+          errors.push(`Failed to apply migration ${version}: ${message}`);
           break; // Stop on first error
         }
       }
@@ -309,7 +311,8 @@ export class DatabaseSchema {
         processingTime: Date.now() - startTime
       };
     } catch (error) {
-      errors.push(`Migration process failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(`Migration process failed: ${message}`);
       
       return {
         success: false,
@@ -341,7 +344,8 @@ export class DatabaseSchema {
           // Some statements might fail if features aren't available (like R-Tree)
           // Log warning but continue
           if (sql.includes('rtree') || sql.includes('VIRTUAL TABLE')) {
-            console.warn(`Optional spatial feature not available: ${error.message}`);
+            const message = error instanceof Error ? error.message : String(error);
+            console.warn(`Optional spatial feature not available: ${message}`);
           } else {
             throw error;
           }
@@ -392,7 +396,8 @@ export class DatabaseSchema {
           await this.rollbackMigration(version);
           appliedMigrations.push(version);
         } catch (error) {
-          errors.push(`Failed to rollback migration ${version}: ${error.message}`);
+          const message = error instanceof Error ? error.message : String(error);
+          errors.push(`Failed to rollback migration ${version}: ${message}`);
           break; // Stop on first error
         }
       }
@@ -408,7 +413,8 @@ export class DatabaseSchema {
         processingTime: Date.now() - startTime
       };
     } catch (error) {
-      errors.push(`Rollback process failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(`Rollback process failed: ${message}`);
       
       return {
         success: false,
@@ -433,7 +439,7 @@ export class DatabaseSchema {
     // Start transaction
     const transaction = this.db.transaction(() => {
       // Execute all rollback statements
-      for (const sql of migration.rollback) {
+      for (const sql of migration.rollback ?? []) {
         this.db.exec(sql);
       }
 
@@ -466,8 +472,9 @@ export class DatabaseSchema {
         FROM schema_version 
         ORDER BY version
       `);
-      return stmt.all();
-    } catch (error) {
+      const rows = stmt.all() as Array<{ version: number; applied_at: string; description: string }>;
+      return rows.map(r => ({ version: r.version, appliedAt: r.applied_at, description: r.description }));
+    } catch (_error) {
       return [];
     }
   }
@@ -492,7 +499,7 @@ export class DatabaseSchema {
         WHERE type='table' AND name NOT LIKE 'sqlite_%'
         ORDER BY name
       `);
-      const tableResults = tableStmt.all();
+      const tableResults = tableStmt.all() as Array<{ name: string }>;
       tables.push(...tableResults.map(r => r.name));
 
       // Get all indexes
@@ -501,7 +508,7 @@ export class DatabaseSchema {
         WHERE type='index' AND name NOT LIKE 'sqlite_%'
         ORDER BY name
       `);
-      const indexResults = indexStmt.all();
+      const indexResults = indexStmt.all() as Array<{ name: string }>;
       indexes.push(...indexResults.map(r => r.name));
 
       // Check for required tables
@@ -514,7 +521,7 @@ export class DatabaseSchema {
 
       // Check foreign key constraints
       const fkStmt = this.db.prepare('PRAGMA foreign_key_check');
-      const fkResults = fkStmt.all();
+      const fkResults = fkStmt.all() as any[];
       if (fkResults.length > 0) {
         issues.push(`Foreign key constraint violations: ${fkResults.length}`);
       }
@@ -525,9 +532,9 @@ export class DatabaseSchema {
         LEFT JOIN walls w ON wsi.wall_id = w.id
         WHERE w.id IS NULL
       `);
-      const orphanResult = orphanStmt.get();
-      if (orphanResult.count > 0) {
-        issues.push(`Orphaned spatial index entries: ${orphanResult.count}`);
+      const orphanResult = orphanStmt.get() as { count?: number } | undefined;
+      if ((orphanResult?.count ?? 0) > 0) {
+        issues.push(`Orphaned spatial index entries: ${orphanResult?.count}`);
       }
 
       return {
@@ -537,7 +544,8 @@ export class DatabaseSchema {
         indexes
       };
     } catch (error) {
-      issues.push(`Schema validation failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      issues.push(`Schema validation failed: ${message}`);
       return {
         valid: false,
         issues,
@@ -576,7 +584,8 @@ export class DatabaseSchema {
           this.db.exec(`ANALYZE ${table}`);
           operations.push(`ANALYZE ${table} completed`);
         } catch (error) {
-          errors.push(`Failed to analyze ${table}: ${error.message}`);
+          const message = error instanceof Error ? error.message : String(error);
+          errors.push(`Failed to analyze ${table}: ${message}`);
         }
       }
 
@@ -587,7 +596,8 @@ export class DatabaseSchema {
         processingTime: Date.now() - startTime
       };
     } catch (error) {
-      errors.push(`Database optimization failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(`Database optimization failed: ${message}`);
       return {
         success: false,
         operations,

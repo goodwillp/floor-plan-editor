@@ -66,19 +66,20 @@ export class BooleanOperationsEngine {
       const martinezPolygons = solids.map(solid => this.wallSolidToMartinezPolygon(solid));
       
       // Validate complexity before operation
-      const totalComplexity = martinezPolygons.reduce((sum, poly) => sum + this.calculatePolygonComplexity(poly), 0);
+      const totalComplexity = martinezPolygons.reduce((sum, poly) => sum + this.calculatePolygonComplexity(poly as martinez.Polygon), 0);
       if (totalComplexity > this.maxComplexity) {
         warnings.push(`High complexity detected (${totalComplexity}), operation may be slow`);
       }
 
       // Perform union operation
-      let result = martinezPolygons[0];
+      let result: martinez.Polygon = martinezPolygons[0] as martinez.Polygon;
       for (let i = 1; i < martinezPolygons.length; i++) {
         try {
-          result = martinez.union(result, martinezPolygons[i]);
+          const geom = martinez.union(result as martinez.Polygon, martinezPolygons[i] as martinez.Polygon);
+          result = this.normalizeGeometryToPolygon(geom);
         } catch (error) {
           // Try fallback strategy
-          const fallbackResult = await this.handleBooleanFailure('union', result, martinezPolygons[i], error);
+          const fallbackResult = await this.handleBooleanFailure('union', result as martinez.Polygon, martinezPolygons[i] as martinez.Polygon, error);
           if (fallbackResult.success) {
             result = fallbackResult.polygon;
             warnings.push(`Fallback strategy used for union operation: ${fallbackResult.method}`);
@@ -144,9 +145,11 @@ export class BooleanOperationsEngine {
 
       let result: martinez.Polygon;
       try {
-        result = martinez.intersection(poly1, poly2);
+        result = this.normalizeGeometryToPolygon(
+          martinez.intersection(poly1 as martinez.Polygon, poly2 as martinez.Polygon)
+        );
       } catch (error) {
-        const fallbackResult = await this.handleBooleanFailure('intersection', poly1, poly2, error);
+        const fallbackResult = await this.handleBooleanFailure('intersection', poly1 as martinez.Polygon, poly2 as martinez.Polygon, error);
         if (fallbackResult.success) {
           result = fallbackResult.polygon;
           warnings.push(`Fallback strategy used for intersection: ${fallbackResult.method}`);
@@ -210,7 +213,7 @@ export class BooleanOperationsEngine {
 
       let result: martinez.Polygon;
       try {
-        result = martinez.diff(poly1, poly2);
+        result = this.normalizeGeometryToPolygon(martinez.diff(poly1, poly2));
       } catch (error) {
         const fallbackResult = await this.handleBooleanFailure('difference', poly1, poly2, error);
         if (fallbackResult.success) {
@@ -436,7 +439,7 @@ export class BooleanOperationsEngine {
       }
     });
 
-    return [outerRing, ...holes];
+    return [outerRing, ...holes] as martinez.Polygon;
   }
 
   /**
@@ -485,13 +488,14 @@ export class BooleanOperationsEngine {
    * Check if the result polygon requires healing
    */
   private checkIfHealingRequired(polygon: martinez.Polygon): boolean {
-    // Check for very small rings that might be slivers
-    for (const ring of polygon) {
-      if (ring.length < 4) return true; // Degenerate ring
-      
-      // Check for very small area (potential sliver)
-      const area = this.calculateRingArea(ring);
-      if (Math.abs(area) < this.tolerance * this.tolerance * 100) return true; // More sensitive threshold
+    const polygons: martinez.Polygon[] = [polygon];
+
+    for (const poly of polygons) {
+      for (const ring of poly) {
+        if (ring.length < 4) return true; // Degenerate ring
+        const area = this.calculateRingArea(ring);
+        if (Math.abs(area) < this.tolerance * this.tolerance * 100) return true;
+      }
     }
     
     return false;
@@ -514,6 +518,14 @@ export class BooleanOperationsEngine {
   /**
    * Handle boolean operation failures with fallback strategies
    */
+  private normalizeGeometryToPolygon(geom: martinez.Geometry): martinez.Polygon {
+    const g: any = geom as any;
+    // If MultiPolygon (triple-nested), return first polygon
+    if (Array.isArray(g) && Array.isArray(g[0]) && Array.isArray(g[0][0]) && Array.isArray(g[0][0][0])) {
+      return g[0] as martinez.Polygon;
+    }
+    return g as martinez.Polygon;
+  }
   private async handleBooleanFailure(
     operation: string,
     poly1: martinez.Polygon,
@@ -528,13 +540,13 @@ export class BooleanOperationsEngine {
       let result: martinez.Polygon;
       switch (operation) {
         case 'union':
-          result = martinez.union(simplifiedPoly1, simplifiedPoly2);
+          result = this.normalizeGeometryToPolygon(martinez.union(simplifiedPoly1, simplifiedPoly2));
           break;
         case 'intersection':
-          result = martinez.intersection(simplifiedPoly1, simplifiedPoly2);
+          result = this.normalizeGeometryToPolygon(martinez.intersection(simplifiedPoly1, simplifiedPoly2));
           break;
         case 'difference':
-          result = martinez.diff(simplifiedPoly1, simplifiedPoly2);
+          result = this.normalizeGeometryToPolygon(martinez.diff(simplifiedPoly1, simplifiedPoly2));
           break;
         default:
           throw new Error(`Unknown operation: ${operation}`);
@@ -550,13 +562,13 @@ export class BooleanOperationsEngine {
         let result: martinez.Polygon;
         switch (operation) {
           case 'union':
-            result = martinez.union(bufferedPoly1, bufferedPoly2);
+            result = this.normalizeGeometryToPolygon(martinez.union(bufferedPoly1, bufferedPoly2));
             break;
           case 'intersection':
-            result = martinez.intersection(bufferedPoly1, bufferedPoly2);
+            result = this.normalizeGeometryToPolygon(martinez.intersection(bufferedPoly1, bufferedPoly2));
             break;
           case 'difference':
-            result = martinez.diff(bufferedPoly1, bufferedPoly2);
+            result = this.normalizeGeometryToPolygon(martinez.diff(bufferedPoly1, bufferedPoly2));
             break;
           default:
             throw new Error(`Unknown operation: ${operation}`);

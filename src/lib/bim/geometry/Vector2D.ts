@@ -13,6 +13,8 @@ export interface Vector2D {
   y: number;
   
   // Vector operations
+  magnitude(): number;
+  magnitudeSquared(): number;
   normalize(): Vector2D;
   dot(other: Vector2D): number;
   cross(other: Vector2D): number;

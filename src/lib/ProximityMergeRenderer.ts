@@ -37,16 +37,16 @@ export class ProximityMergeRenderer {
    * Requirements: 5.3, 5.4
    */
   private setupEventListeners(): void {
-    window.addEventListener('merge-created', this.handleMergeCreated.bind(this))
-    window.addEventListener('merge-separated', this.handleMergeSeparated.bind(this))
+    window.addEventListener('merge-created' as any, this.handleMergeCreated as unknown as EventListener)
+    window.addEventListener('merge-separated' as any, this.handleMergeSeparated as unknown as EventListener)
   }
 
   /**
    * Handle merge created event
    * Requirements: 5.3
    */
-  private handleMergeCreated(event: CustomEvent): void {
-    const merge = event.detail as ProximityMerge
+  private handleMergeCreated(event: Event): void {
+    const merge = (event as CustomEvent).detail as ProximityMerge
     this.renderMerge(merge)
   }
 
@@ -54,8 +54,8 @@ export class ProximityMergeRenderer {
    * Handle merge separated event
    * Requirements: 5.4
    */
-  private handleMergeSeparated(event: CustomEvent): void {
-    const merge = event.detail as ProximityMerge
+  private handleMergeSeparated(event: Event): void {
+    const merge = (event as CustomEvent).detail as ProximityMerge
     this.removeMerge(merge.id)
   }
 
@@ -381,8 +381,8 @@ export class ProximityMergeRenderer {
     }
 
     // Remove event listeners
-    window.removeEventListener('merge-created', this.handleMergeCreated.bind(this))
-    window.removeEventListener('merge-separated', this.handleMergeSeparated.bind(this))
+    window.removeEventListener('merge-created' as any, this.handleMergeCreated as unknown as EventListener)
+    window.removeEventListener('merge-separated' as any, this.handleMergeSeparated as unknown as EventListener)
 
     // Clear all graphics
     this.clear()

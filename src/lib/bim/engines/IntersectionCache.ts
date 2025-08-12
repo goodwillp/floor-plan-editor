@@ -102,8 +102,8 @@ export class IntersectionCache {
     this.updateStatistics('cache', size);
 
     // Mark the intersection as cached
-    if (typeof intersection.markAsCached === 'function') {
-      intersection.markAsCached();
+    if (typeof (intersection as any).markAsCached === 'function') {
+      (intersection as any).markAsCached();
     }
   }
 

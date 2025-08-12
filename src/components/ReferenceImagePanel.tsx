@@ -200,12 +200,12 @@ export function ReferenceImagePanel({
                   </Button>
 
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                    <DropdownMenuTrigger>
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                         <Maximize2 className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent>
                       <DropdownMenuItem onClick={() => onFitToCanvas('contain')}>
                         Fit to Canvas
                       </DropdownMenuItem>

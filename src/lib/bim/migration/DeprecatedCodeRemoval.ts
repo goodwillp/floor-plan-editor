@@ -317,7 +317,7 @@ private static get PROXIMITY_THRESHOLD(): number {
         await this.executeRemovalStep(step, result);
       } catch (error) {
         result.success = false;
-        result.errors.push(`Step ${step.order} failed: ${error.message}`);
+        result.errors.push(`Step ${step.order} failed: ${error instanceof Error ? error.message : String(error)}`);
         break;
       }
     }

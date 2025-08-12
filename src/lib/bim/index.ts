@@ -11,7 +11,10 @@ export * from './geometry/Vector2D';
 export * from './geometry/BIMPolygon';
 export * from './geometry/Curve';
 export * from './geometry/WallSolid';
-export * from './geometry/IntersectionData';
+// Re-export with explicit names to avoid ambiguity with similarly named types
+export type { IntersectionData } from './geometry/IntersectionData';
+export { IntersectionDataImpl } from './geometry/IntersectionData';
+export type { ValidationResult as MiterValidationResult } from './geometry/MiterCalculation';
 export * from './geometry/MiterCalculation';
 
 // Geometric engines

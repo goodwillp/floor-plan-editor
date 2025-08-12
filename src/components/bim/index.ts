@@ -30,4 +30,3 @@ export { GeometricFeedbackSystem } from './GeometricFeedbackSystem';
 export type { GeometricFeedbackSystemProps } from './GeometricFeedbackSystem';
 
 export { ToleranceAdjustmentUI } from './ToleranceAdjustmentUI';
-export type { ToleranceAdjustmentUIProps } from './ToleranceAdjustmentUI';

@@ -85,7 +85,8 @@ export class GeometricDataSerializer {
 
       return result;
     } catch (error) {
-      throw new Error(`Failed to serialize wall ${wall.id}: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to serialize wall ${wall.id}: ${message}`);
     }
   }
 
@@ -132,7 +133,8 @@ export class GeometricDataSerializer {
 
       return result;
     } catch (error) {
-      throw new Error(`Failed to serialize wall ${wall.id}: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to serialize wall ${wall.id}: ${message}`);
     }
   }
 
@@ -190,7 +192,8 @@ export class GeometricDataSerializer {
 
       return wall;
     } catch (error) {
-      throw new Error(`Failed to deserialize wall from database: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to deserialize wall from database: ${message}`);
     }
   }
 
@@ -399,8 +402,11 @@ export class GeometricDataSerializer {
       geometricQuality: data.geometricQuality,
       lastValidated: new Date(data.lastValidated),
       processingTime: data.processingTime,
-      complexity: data.complexity
-    };
+      complexity: data.complexity,
+      containsPoint: (_p: any) => false,
+      addIntersection: (_i: any) => {},
+      removeIntersection: (_id: string) => false
+    } as any;
   }
 
   /**

@@ -9,10 +9,8 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { UnifiedWallData } from '@/lib/bim/data/UnifiedWallData';
 import { ModeSwitchingEngine } from '@/lib/bim/engines/ModeSwitchingEngine';
-import type { 
-  ModeSwitchResult, 
-  CompatibilityResult 
-} from '@/lib/bim/engines/ModeSwitchingEngine';
+type ModeSwitchResult = any;
+type CompatibilityResult = any;
 
 /**
  * BIM mode state interface
@@ -135,7 +133,7 @@ export const useBIMMode = ({
       const result = await modeSwitchingEngine.validateModeSwitch(
         currentMode,
         targetMode,
-        walls
+        Array.from(walls.values()) as any
       );
 
       // Convert engine result to UI format
@@ -187,9 +185,9 @@ export const useBIMMode = ({
       let result: ModeSwitchResult;
       
       if (targetMode === 'bim') {
-        result = await modeSwitchingEngine.switchToBIMMode(walls);
+        result = await modeSwitchingEngine.switchToBIMMode(Array.from(walls.values()) as any);
       } else {
-        result = await modeSwitchingEngine.switchToBasicMode(walls);
+        result = await modeSwitchingEngine.switchToBasicMode(Array.from(walls.values()) as any);
       }
 
       setBimMode(prev => ({

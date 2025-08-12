@@ -54,6 +54,13 @@ export interface WallSolid {
   // Performance data
   processingTime: number;
   complexity: number;
+
+  // Geometry queries
+  containsPoint(point: { x: number; y: number }): boolean;
+
+  // Intersections
+  addIntersection(intersection: IntersectionData): void;
+  removeIntersection(intersectionId: string): boolean;
 }
 
 /**
@@ -220,10 +227,10 @@ export class WallSolidImpl implements WallSolid {
         creationMethod: 'point_test',
         accuracy: 1.0,
         validated: false,
-        distanceTo: function(other) { 
+        distanceTo: function(other: { x: number; y: number }) { 
           return Math.sqrt((other.x - this.x) ** 2 + (other.y - this.y) ** 2); 
         },
-        equals: function(other, tolerance = 1e-6) { 
+        equals: function(other: { x: number; y: number }, tolerance = 1e-6) { 
           return this.distanceTo(other) <= tolerance; 
         }
       } as any)

@@ -355,10 +355,10 @@ export class PerformanceOptimizer {
    */
   enablePerformanceMode(container: PIXI.Container): void {
     // Reduce rendering quality for better performance
-    if (container.parent && container.parent instanceof PIXI.Application) {
-      const app = container.parent as PIXI.Application
-      app.renderer.antialias = false
-      app.renderer.resolution = Math.max(1, window.devicePixelRatio * 0.5)
+    // Adjust resolution for performance; antialias control is not exposed in PIXI v8 at runtime
+    const app = (container as any).app as PIXI.Application | undefined
+    if (app && app.renderer) {
+      app.renderer.resolution = Math.max(1, (window as any).devicePixelRatio ? (window as any).devicePixelRatio * 0.5 : 1)
     }
     
     // Disable some visual effects
@@ -370,10 +370,9 @@ export class PerformanceOptimizer {
    * Disable performance mode (restore full quality)
    */
   disablePerformanceMode(container: PIXI.Container): void {
-    if (container.parent && container.parent instanceof PIXI.Application) {
-      const app = container.parent as PIXI.Application
-      app.renderer.antialias = true
-      app.renderer.resolution = window.devicePixelRatio || 1
+    const app = (container as any).app as PIXI.Application | undefined
+    if (app && app.renderer) {
+      app.renderer.resolution = (window as any).devicePixelRatio || 1
     }
     
     container.cacheAsBitmap = false

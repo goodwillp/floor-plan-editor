@@ -150,7 +150,6 @@ export function ToolPalette({
       {(onZoomIn || onZoomOut || onResetZoom) && (
         <ButtonGroup>
           <CompactZoomControls
-            zoom={zoom}
             zoomPercentage={zoomPercentage}
             canZoomIn={canZoomIn}
             canZoomOut={canZoomOut}

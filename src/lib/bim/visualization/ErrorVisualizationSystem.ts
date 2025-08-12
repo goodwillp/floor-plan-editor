@@ -5,6 +5,7 @@
 import { GeometricError } from '../validation/GeometricError';
 import type { WallSolid } from '../geometry/WallSolid';
 import type { BIMPoint } from '../geometry/BIMPoint';
+import { BIMPointImpl } from '../geometry/BIMPoint';
 import type { BIMPolygon } from '../geometry/BIMPolygon';
 
 export interface ErrorVisualizationConfig {
@@ -473,15 +474,13 @@ export class ErrorVisualizationSystem {
     }
 
     // Default position
-    return { 
-      x: 0, 
-      y: 0, 
-      id: 'error_position', 
+    return new BIMPointImpl(0, 0, {
+      id: 'error_position',
       tolerance: 0.001,
       creationMethod: 'error_fallback',
       accuracy: 1.0,
       validated: false
-    };
+    });
   }
 
   /**

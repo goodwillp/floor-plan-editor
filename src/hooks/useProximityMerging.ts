@@ -100,8 +100,8 @@ export function useProximityMerging({
 
   // Listen for merge events and update state
   useEffect(() => {
-    const handleMergeCreated = (event: CustomEvent) => {
-      const merge = event.detail as ProximityMerge
+    const handleMergeCreated = (event: Event) => {
+      const merge = (event as CustomEvent).detail as ProximityMerge
       setActiveMerges(prev => {
         const existing = prev.find(m => m.id === merge.id)
         if (existing) return prev
@@ -109,17 +109,17 @@ export function useProximityMerging({
       })
     }
 
-    const handleMergeSeparated = (event: CustomEvent) => {
-      const merge = event.detail as ProximityMerge
+    const handleMergeSeparated = (event: Event) => {
+      const merge = (event as CustomEvent).detail as ProximityMerge
       setActiveMerges(prev => prev.filter(m => m.id !== merge.id))
     }
 
-    window.addEventListener('merge-created', handleMergeCreated)
-    window.addEventListener('merge-separated', handleMergeSeparated)
+    window.addEventListener('merge-created' as any, handleMergeCreated as unknown as EventListener)
+    window.addEventListener('merge-separated' as any, handleMergeSeparated as unknown as EventListener)
 
     return () => {
-      window.removeEventListener('merge-created', handleMergeCreated)
-      window.removeEventListener('merge-separated', handleMergeSeparated)
+      window.removeEventListener('merge-created' as any, handleMergeCreated as unknown as EventListener)
+      window.removeEventListener('merge-separated' as any, handleMergeSeparated as unknown as EventListener)
     }
   }, [])
 

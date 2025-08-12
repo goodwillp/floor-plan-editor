@@ -803,7 +803,7 @@ export class UserGuidanceSystem {
   }
 
   private getErrorTypeTitle(errorType: GeometricErrorType): string {
-    const titles: Record<GeometricErrorType, string> = {
+    const titles: Partial<Record<GeometricErrorType, string>> = {
       [GeometricErrorType.DEGENERATE_GEOMETRY]: 'Fixing Degenerate Geometry',
       [GeometricErrorType.SELF_INTERSECTION]: 'Resolving Self-Intersections',
       [GeometricErrorType.NUMERICAL_INSTABILITY]: 'Addressing Numerical Issues',

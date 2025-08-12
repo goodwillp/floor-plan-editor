@@ -573,12 +573,15 @@ export class RobustOffsetEngine {
         const rightSegment = this.generateOffsetCurve(segment, -distance, params, 'right');
 
         // Merge points (skip first point of subsequent segments to avoid duplication)
+        const normalize = (p: any) => p instanceof BIMPointImpl ? p : new BIMPointImpl(p.x, p.y, {
+          id: p.id, tolerance: p.tolerance, creationMethod: p.creationMethod, accuracy: p.accuracy, validated: p.validated
+        });
         if (i === 0) {
-          leftPoints.push(...leftSegment.points);
-          rightPoints.push(...rightSegment.points);
+          leftPoints.push(...leftSegment.points.map(normalize));
+          rightPoints.push(...rightSegment.points.map(normalize));
         } else {
-          leftPoints.push(...leftSegment.points.slice(1));
-          rightPoints.push(...rightSegment.points.slice(1));
+          leftPoints.push(...leftSegment.points.slice(1).map(normalize));
+          rightPoints.push(...rightSegment.points.slice(1).map(normalize));
         }
       } catch (segmentError) {
         // Skip problematic segments
@@ -599,16 +602,23 @@ export class RobustOffsetEngine {
   /**
    * Simplify baseline by removing intermediate points
    */
-  private simplifyBaseline(points: BIMPointImpl[]): BIMPointImpl[] {
-    if (points.length <= 3) return points;
+  private simplifyBaseline(points: Array<BIMPointImpl | { x: number; y: number; id?: string; tolerance?: number; creationMethod?: string; accuracy?: number; validated?: boolean }>): BIMPointImpl[] {
+    const normalized = points.map(p => p instanceof BIMPointImpl ? p : new BIMPointImpl(p.x, p.y, {
+      id: (p as any).id,
+      tolerance: (p as any).tolerance,
+      creationMethod: (p as any).creationMethod || 'simplify',
+      accuracy: (p as any).accuracy,
+      validated: (p as any).validated
+    }));
+    if (normalized.length <= 3) return normalized;
 
-    const simplified: BIMPointImpl[] = [points[0]];
+    const simplified: BIMPointImpl[] = [normalized[0]];
     const tolerance = 1.0; // 1mm tolerance for simplification
 
-    for (let i = 1; i < points.length - 1; i++) {
+    for (let i = 1; i < normalized.length - 1; i++) {
       const prev = simplified[simplified.length - 1];
-      const current = points[i];
-      const next = points[i + 1];
+      const current = normalized[i];
+      const next = normalized[i + 1];
 
       // Check if current point is necessary (not collinear within tolerance)
       const distance = this.pointToLineDistance(current, prev, next);
@@ -617,7 +627,7 @@ export class RobustOffsetEngine {
       }
     }
 
-    simplified.push(points[points.length - 1]);
+    simplified.push(normalized[normalized.length - 1]);
     return simplified;
   }
 

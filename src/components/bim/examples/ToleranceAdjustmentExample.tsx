@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ToleranceAdjustmentUI } from '../ToleranceAdjustmentUI';
 import { UnifiedWallData } from '../../../lib/bim/data/UnifiedWallData';
-import { WallTypeString } from '../../../types/Wall';
+import type { WallTypeString } from '../../../lib/types';
 
 /**
  * Example component demonstrating ToleranceAdjustmentUI usage
@@ -14,7 +14,7 @@ export const ToleranceAdjustmentExample: React.FC = () => {
   const [isApplying, setIsApplying] = useState(false);
 
   // Mock wall data for demonstration
-  const mockWallData: UnifiedWallData = {
+  const mockWallData: any = {
     id: 'example-wall-1',
     type: 'Layout' as WallTypeString,
     thickness: 15.0,
@@ -22,20 +22,16 @@ export const ToleranceAdjustmentExample: React.FC = () => {
     baseline: {
       id: 'baseline-1',
       points: [
-        { x: 0, y: 0 },
-        { x: 200, y: 0 },
-        { x: 200, y: 100 }
+        { x: 0, y: 0, id: 'p1', tolerance: 1e-6, creationMethod: 'example', accuracy: 1, validated: true } as any,
+        { x: 200, y: 0, id: 'p2', tolerance: 1e-6, creationMethod: 'example', accuracy: 1, validated: true } as any,
+        { x: 200, y: 100, id: 'p3', tolerance: 1e-6, creationMethod: 'example', accuracy: 1, validated: true } as any
       ],
       type: 'polyline' as any,
       isClosed: false,
       length: 300,
       boundingBox: { minX: 0, minY: 0, maxX: 200, maxY: 100 },
       curvature: [0, 0, 0],
-      tangents: [
-        { x: 1, y: 0 },
-        { x: 1, y: 0 },
-        { x: 0, y: 1 }
-      ]
+      tangents: [] as any
     },
     basicGeometry: {
       segments: [],

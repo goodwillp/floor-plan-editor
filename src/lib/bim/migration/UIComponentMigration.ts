@@ -280,19 +280,19 @@ export class UIComponentMigrationManager {
    * Get creation effort based on complexity
    */
   private getCreationEffort(complexity: string): number {
-    const effortMap = {
+    const effortMap: Record<'low'|'medium'|'high', number> = {
       'low': 2,
       'medium': 8,
       'high': 16
     };
-    return effortMap[complexity] || 8;
+    return effortMap[(complexity as 'low'|'medium'|'high')] || 8;
   }
 
   /**
    * Get props migration effort
    */
   private getPropsMigrationEffort(complexity: string): number {
-    const effortMap = {
+    const effortMap: any = {
       'low': 1,
       'medium': 4,
       'high': 8
@@ -390,7 +390,7 @@ export class UIComponentMigrationManager {
         console.error(`❌ Failed step ${step.order}: ${step.description}`, error);
         result.success = false;
         result.failedComponents.push(componentId);
-        result.warnings.push(`Step ${step.order} failed: ${error.message}`);
+        result.warnings.push(`Step ${step.order} failed: ${error instanceof Error ? error.message : String(error)}`);
         break;
       }
     }
@@ -745,7 +745,7 @@ export const BIMWallPropertiesPanel: React.FC<BIMWallPropertiesPanelProps> = ({
    * Sort components by migration complexity
    */
   private sortByMigrationComplexity(componentIds: string[]): string[] {
-    const complexityOrder = { low: 0, medium: 1, high: 2 };
+    const complexityOrder: any = { low: 0, medium: 1, high: 2 };
     
     return componentIds.sort((a, b) => {
       const componentA = this.deprecatedComponents.get(a);

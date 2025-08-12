@@ -56,7 +56,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
       // Load R-Tree extension for spatial indexing
       try {
         this.db.loadExtension('mod_spatialite');
-      } catch (error) {
+      } catch (_error) {
         console.warn('Spatial extension not available, spatial queries will be limited');
       }
 
@@ -77,7 +77,8 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
 
       return this.connection;
     } catch (error) {
-      throw new Error(`Failed to connect to SQLite database: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to connect to SQLite database: ${message}`);
     }
   }
 
@@ -183,7 +184,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
         wallId: wall.id,
         version: wall.version,
         timestamp: new Date(),
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -198,7 +199,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
         SELECT * FROM walls WHERE id = ?
       `);
 
-      const row = stmt.get(wallId);
+      const row = stmt.get(wallId) as any;
       if (!row) {
         return {
           success: false,
@@ -211,13 +212,13 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
       return {
         success: true,
         wall,
-        version: row.version,
-        timestamp: new Date(row.updated_at)
+        version: row.version as number,
+        timestamp: new Date(row.updated_at as string)
       };
     } catch (error) {
       return {
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -248,7 +249,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
       return {
         success: false,
         wallId,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -318,7 +319,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
           processedCount++;
         } catch (error) {
           failedCount++;
-          errors.push(`Wall ${wall.id}: ${error.message}`);
+          errors.push(`Wall ${wall.id}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
     });
@@ -338,7 +339,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
         success: false,
         processedCount: 0,
         failedCount: walls.length,
-        errors: [error.message],
+        errors: [error instanceof Error ? error.message : String(error)],
         processingTime: Date.now() - startTime
       };
     }
@@ -355,7 +356,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
         SELECT * FROM walls WHERE id IN (${placeholders})
       `);
 
-      const rows = stmt.all(...wallIds);
+      const rows = stmt.all(...wallIds) as any[];
       const walls: UnifiedWallData[] = [];
 
       for (const row of rows) {
@@ -363,7 +364,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
           const wall = await this.serializer.deserializeWall(row);
           walls.push(wall);
         } catch (error) {
-          console.warn(`Failed to deserialize wall ${row.id}: ${error.message}`);
+          console.warn(`Failed to deserialize wall ${row.id}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
 
@@ -377,7 +378,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
         success: false,
         data: [],
         count: 0,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -414,7 +415,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
         success: false,
         processedCount: 0,
         failedCount: wallIds.length,
-        errors: [error.message],
+        errors: [error instanceof Error ? error.message : String(error)],
         processingTime: Date.now() - startTime
       };
     }
@@ -451,7 +452,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
         wallId: projectId,
         version: 0,
         timestamp: new Date(),
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -463,7 +464,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
 
     try {
       const stmt = this.db.prepare('SELECT * FROM projects WHERE id = ?');
-      const row = stmt.get(projectId);
+      const row = stmt.get(projectId) as any;
 
       if (!row) {
         return {
@@ -474,14 +475,14 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
 
       return {
         success: true,
-        wall: JSON.parse(row.metadata),
+        wall: JSON.parse(row.metadata as string),
         version: 1,
-        timestamp: new Date(row.updated_at)
+        timestamp: new Date(row.updated_at as string)
       };
     } catch (error) {
       return {
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -503,7 +504,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
       return {
         success: false,
         wallId: projectId,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -556,7 +557,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
         wallId,
         version: 0,
         timestamp: new Date(),
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -568,7 +569,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
 
     try {
       const stmt = this.db.prepare('SELECT * FROM quality_metrics WHERE wall_id = ?');
-      const row = stmt.get(wallId);
+      const row = stmt.get(wallId) as any;
 
       if (!row) {
         return {
@@ -607,7 +608,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
         success: false,
         data: [],
         count: 0,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -650,7 +651,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
           processedCount++;
         } catch (error) {
           failedCount++;
-          errors.push(`Intersection ${intersection.id}: ${error.message}`);
+          errors.push(`Intersection ${intersection.id}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
     });
@@ -670,7 +671,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
         success: false,
         processedCount: 0,
         failedCount: intersectionData.length,
-        errors: [error.message],
+        errors: [error instanceof Error ? error.message : String(error)],
         processingTime: Date.now() - startTime
       };
     }
@@ -694,7 +695,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
       for (const wallId of wallIds) {
         const rows = stmt.all(wallId);
         
-        for (const row of rows) {
+        for (const row of rows as any[]) {
           // Skip if we've already processed this intersection
           if (seenIntersectionIds.has(row.id)) {
             continue;
@@ -708,15 +709,20 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
               id: row.id,
               type: row.type,
               participatingWalls,
-              intersectionPoint: { x: row.intersection_point_x, y: row.intersection_point_y },
+              intersectionPoint: ({ x: row.intersection_point_x, y: row.intersection_point_y } as any),
               miterApex: row.miter_apex_x !== null ? 
-                { x: row.miter_apex_x, y: row.miter_apex_y } : null,
+                ({ x: row.miter_apex_x, y: row.miter_apex_y } as any) : null,
               offsetIntersections: JSON.parse(row.offset_intersections_data || '[]'),
               resolvedGeometry: JSON.parse(row.resolved_geometry_data || '{}'),
               resolutionMethod: row.resolution_method,
               geometricAccuracy: row.geometric_accuracy,
-              validated: row.validated === 1
-            };
+              validated: row.validated === 1,
+              createdAt: new Date(row.created_at || Date.now()),
+              lastModified: new Date(row.updated_at || Date.now()),
+              processingTime: 0,
+              cached: false,
+              cacheKey: ''
+            } as any;
             
             intersections.push(intersection);
             seenIntersectionIds.add(row.id);
@@ -734,7 +740,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
         success: false,
         data: [],
         count: 0,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -757,7 +763,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
           AND wsi.min_y <= ? AND wsi.max_y >= ?
       `);
 
-      const rows = stmt.all(bounds.maxX, bounds.minX, bounds.maxY, bounds.minY);
+      const rows = stmt.all(bounds.maxX, bounds.minX, bounds.maxY, bounds.minY) as any[];
       const walls: UnifiedWallData[] = [];
 
       for (const row of rows) {
@@ -765,7 +771,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
           const wall = await this.serializer.deserializeWall(row);
           walls.push(wall);
         } catch (error) {
-          console.warn(`Failed to deserialize wall ${row.id}: ${error.message}`);
+          console.warn(`Failed to deserialize wall ${row.id}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
 
@@ -779,7 +785,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
         success: false,
         data: [],
         count: 0,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -808,7 +814,7 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
         success: false,
         data: [],
         count: 0,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -947,9 +953,9 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
 
     try {
       const stmt = this.db.prepare('SELECT MAX(version) as version FROM schema_version');
-      const result = stmt.get();
+      const result = stmt.get() as { version?: number } | undefined;
       return result?.version || 0;
-    } catch (error) {
+    } catch (_error) {
       return 0; // Schema version table doesn't exist yet
     }
   }
@@ -981,14 +987,14 @@ export class SQLiteImplementation implements DatabaseAbstractionLayer {
     const tables = ['walls', 'projects', 'quality_metrics', 'intersection_data'];
     for (const table of tables) {
       const stmt = this.db.prepare(`SELECT COUNT(*) as count FROM ${table}`);
-      const result = stmt.get();
-      stats[`${table}_count`] = result.count;
+    const result = stmt.get() as { count?: number } | undefined;
+    stats[`${table}_count`] = result?.count ?? 0;
     }
 
     // Get database size
     const sizeStmt = this.db.prepare("SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()");
-    const sizeResult = sizeStmt.get();
-    stats.database_size_bytes = sizeResult.size;
+    const sizeResult = sizeStmt.get() as { size?: number } | undefined;
+    stats.database_size_bytes = sizeResult?.size ?? 0;
 
     // Get schema version
     stats.schema_version = await this.getSchemaVersion();

@@ -30,6 +30,9 @@ export interface BIMPolygon {
   creationMethod: string;
   healingApplied: boolean;
   simplificationApplied: boolean;
+
+  // Geometry queries
+  containsPoint(point: BIMPoint): boolean;
 }
 
 /**

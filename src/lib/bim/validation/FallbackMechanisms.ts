@@ -626,7 +626,7 @@ class SimplifiedGeometryOffsetStrategy implements FallbackStrategy {
   }
 
   execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
-    // const startTime = performance.now(); // Unused for now
+    const startTime = performance.now();
     const { baseline, distance, tolerance } = input;
     // const joinType = input.joinType; // Unused for now
 
@@ -695,7 +695,7 @@ class ReducedPrecisionOffsetStrategy implements FallbackStrategy {
   }
 
   execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
-    // const startTime = performance.now(); // Unused for now
+    const startTime = performance.now();
     const { baseline, distance, tolerance } = input;
     // const joinType = input.joinType; // Unused for now
 
@@ -754,7 +754,7 @@ class SegmentedOffsetStrategy implements FallbackStrategy {
   }
 
   execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
-    // const startTime = performance.now(); // Unused for now
+    const startTime = performance.now();
     const { baseline, distance, tolerance } = input;
     // const joinType = input.joinType; // Unused for now
 
@@ -881,7 +881,7 @@ class SimplifiedBooleanStrategy implements FallbackStrategy {
   }
 
   execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
-    // const startTime = performance.now(); // Unused for now
+    const startTime = performance.now();
     const { solids } = input;
 
     try {
@@ -940,7 +940,7 @@ class AlternativeLibraryBooleanStrategy implements FallbackStrategy {
   }
 
   execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
-    // const startTime = performance.now(); // Unused for now
+    const startTime = performance.now();
     const { solids } = input;
 
     try {
@@ -991,7 +991,7 @@ class ApproximateBooleanStrategy implements FallbackStrategy {
   }
 
   execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
-    // const startTime = performance.now(); // Unused for now
+    const startTime = performance.now();
     const { solids } = input;
 
     try {
@@ -1042,7 +1042,7 @@ class BasicUnionStrategy implements FallbackStrategy {
   }
 
   execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
-    // const startTime = performance.now(); // Unused for now
+    const startTime = performance.now();
     const { solids } = input;
 
     try {
@@ -1093,7 +1093,7 @@ class ApproximateIntersectionStrategy implements FallbackStrategy {
   }
 
   execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
-    // const startTime = performance.now(); // Unused for now
+    const startTime = performance.now();
     const { walls, intersectionType } = input;
 
     try {
@@ -1143,7 +1143,7 @@ class SimplifiedIntersectionStrategy implements FallbackStrategy {
   }
 
   execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
-    // const startTime = performance.now(); // Unused for now
+    const startTime = performance.now();
     const { walls, intersectionType } = input;
 
     try {
@@ -1199,7 +1199,7 @@ class BasicOverlapStrategy implements FallbackStrategy {
   }
 
   execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
-    // const startTime = performance.now(); // Unused for now
+    const startTime = performance.now();
     const { walls } = input;
 
     try {

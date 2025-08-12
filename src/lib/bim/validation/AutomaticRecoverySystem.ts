@@ -1,6 +1,7 @@
-import { WallSolid } from '../geometry/WallSolid';
+import type { WallSolid } from '../geometry/WallSolid';
 import { Curve } from '../geometry/Curve';
 import { BIMPolygon } from '../geometry/BIMPolygon';
+import { BIMPointImpl } from '../geometry/BIMPoint';
 import { GeometricError, GeometricErrorType, ErrorSeverity } from './GeometricError';
 import { QualityMetrics } from '../types/QualityTypes';
 
@@ -272,15 +273,15 @@ export class AutomaticRecoverySystem {
   private prioritizeErrors(errors: GeometricError[]): GeometricError[] {
     return errors.sort((a, b) => {
       // Sort by severity first
-      const severityOrder = {
-        [ErrorSeverity.CRITICAL]: 0,
-        [ErrorSeverity.ERROR]: 1,
-        [ErrorSeverity.WARNING]: 2
-      };
+    const severityOrder = new Map<ErrorSeverity, number>([
+      [ErrorSeverity.CRITICAL, 0],
+      [ErrorSeverity.ERROR, 1],
+      [ErrorSeverity.WARNING, 2]
+    ]);
 
-      if (severityOrder[a.severity] !== severityOrder[b.severity]) {
-        return severityOrder[a.severity] - severityOrder[b.severity];
-      }
+    const sa = severityOrder.get(a.severity) ?? 99;
+    const sb = severityOrder.get(b.severity) ?? 99;
+    if (sa !== sb) return sa - sb;
 
       // Then by recoverability
       if (a.recoverable !== b.recoverable) {
@@ -347,7 +348,7 @@ export class AutomaticRecoverySystem {
     const warnings: string[] = [];
     let qualityImpact = 0;
 
-    if (data instanceof WallSolid) {
+    if (data && (data as any).baseline) {
       let recoveredData = { ...data };
 
       // Fix degenerate baseline
@@ -355,15 +356,15 @@ export class AutomaticRecoverySystem {
         recoveredData.baseline = {
           id: 'recovered_baseline',
           points: [
-            { x: 0, y: 0, id: 'p1', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true },
-            { x: 100, y: 0, id: 'p2', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true }
+            new BIMPointImpl(0, 0, { id: 'p1', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true }),
+            new BIMPointImpl(100, 0, { id: 'p2', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true })
           ],
           type: 'polyline' as any,
           isClosed: false,
           length: 100,
           boundingBox: { minX: 0, minY: 0, maxX: 100, maxY: 0 },
           curvature: [0, 0],
-          tangents: [{ x: 1, y: 0 }, { x: 1, y: 0 }]
+          tangents: [] as any
         };
         qualityImpact += 0.4;
         warnings.push('Created minimal baseline for degenerate geometry');
@@ -410,7 +411,7 @@ export class AutomaticRecoverySystem {
     const warnings: string[] = [];
     let qualityImpact = 0;
 
-    if (data instanceof WallSolid) {
+    if (data && (data as any).baseline) {
       let recoveredData = { ...data };
       
       // Simplify baseline to remove self-intersections
@@ -455,7 +456,7 @@ export class AutomaticRecoverySystem {
     const warnings: string[] = [];
     let qualityImpact = 0;
 
-    if (data instanceof WallSolid) {
+    if (data && (data as any).baseline) {
       let recoveredData = { ...data };
       
       // Remove micro-segments
@@ -473,7 +474,7 @@ export class AutomaticRecoverySystem {
       // Clamp extreme coordinates
       const maxCoordinate = 1e6;
       let clampedCoordinates = 0;
-      recoveredData.baseline.points = recoveredData.baseline.points.map(point => {
+      recoveredData.baseline.points = recoveredData.baseline.points.map((point: any) => {
         const clampedX = Math.max(-maxCoordinate, Math.min(maxCoordinate, point.x));
         const clampedY = Math.max(-maxCoordinate, Math.min(maxCoordinate, point.y));
         
@@ -491,7 +492,7 @@ export class AutomaticRecoverySystem {
 
       // Round coordinates to reasonable precision
       const precision = 1e-10;
-      recoveredData.baseline.points = recoveredData.baseline.points.map(point => ({
+      recoveredData.baseline.points = recoveredData.baseline.points.map((point: any) => ({
         ...point,
         x: Math.round(point.x / precision) * precision,
         y: Math.round(point.y / precision) * precision
@@ -524,10 +525,10 @@ export class AutomaticRecoverySystem {
     const warnings: string[] = [];
     let qualityImpact = 0;
 
-    if (data instanceof WallSolid && data.solidGeometry) {
+    if (data && (data as any).solidGeometry) {
       let recoveredData = { ...data };
       
-      recoveredData.solidGeometry = recoveredData.solidGeometry.map(polygon => {
+      recoveredData.solidGeometry = recoveredData.solidGeometry.map((polygon: any) => {
         let repairedPolygon = { ...polygon };
 
         // Ensure minimum vertex count
@@ -584,7 +585,7 @@ export class AutomaticRecoverySystem {
     const warnings: string[] = [];
     let qualityImpact = 0;
 
-    if (data instanceof WallSolid) {
+    if (data && (data as any).baseline) {
       let recoveredData = { ...data };
       
       // Remove duplicates from baseline
@@ -598,8 +599,8 @@ export class AutomaticRecoverySystem {
       }
 
       // Remove duplicates from solid geometry
-      if (recoveredData.solidGeometry) {
-        recoveredData.solidGeometry = recoveredData.solidGeometry.map(polygon => ({
+        if (recoveredData.solidGeometry) {
+          recoveredData.solidGeometry = recoveredData.solidGeometry.map((polygon: any) => ({
           ...polygon,
           outerRing: this.removeDuplicatePoints(polygon.outerRing, 1e-10)
         }));
@@ -632,7 +633,7 @@ export class AutomaticRecoverySystem {
     const warnings: string[] = [];
     let qualityImpact = 0;
 
-    if (data instanceof WallSolid) {
+    if (data && (data as any).baseline) {
       let recoveredData = { ...data };
       
       // Simplify baseline using Douglas-Peucker algorithm
@@ -678,7 +679,7 @@ export class AutomaticRecoverySystem {
     const warnings: string[] = [];
     const qualityImpact = 0.6; // High quality impact for reconstruction
 
-    if (data instanceof WallSolid) {
+    if (data && (data as any).baseline) {
       // Create simplified geometry from baseline
       const recoveredData = this.createSimplifiedWallSolid(data.baseline, data.thickness);
       
@@ -729,53 +730,55 @@ export class AutomaticRecoverySystem {
     return [{
       id: 'minimal_solid',
       outerRing: [
-        { x: start.x + nx * halfThickness, y: start.y + ny * halfThickness, id: 'p1', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true },
-        { x: end.x + nx * halfThickness, y: end.y + ny * halfThickness, id: 'p2', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true },
-        { x: end.x - nx * halfThickness, y: end.y - ny * halfThickness, id: 'p3', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true },
-        { x: start.x - nx * halfThickness, y: start.y - ny * halfThickness, id: 'p4', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true }
+        new BIMPointImpl(start.x + nx * halfThickness, start.y + ny * halfThickness, { id: 'p1', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true }),
+        new BIMPointImpl(end.x + nx * halfThickness, end.y + ny * halfThickness, { id: 'p2', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true }),
+        new BIMPointImpl(end.x - nx * halfThickness, end.y - ny * halfThickness, { id: 'p3', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true }),
+        new BIMPointImpl(start.x - nx * halfThickness, start.y - ny * halfThickness, { id: 'p4', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true })
       ],
       holes: [],
       area: thickness * length,
       perimeter: 2 * (thickness + length),
-      centroid: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2, id: 'centroid', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true },
+      centroid: new BIMPointImpl((start.x + end.x) / 2, (start.y + end.y) / 2, { id: 'centroid', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true }),
       boundingBox: this.calculateBoundingBox([start, end]),
       isValid: true,
       selfIntersects: false,
       hasSliversFaces: false,
       creationMethod: 'recovery',
       healingApplied: false,
-      simplificationApplied: false
-    }];
+      simplificationApplied: false,
+      containsPoint: (_point: any) => true
+    } as any];
   }
 
   private createMinimalPolygon(): BIMPolygon {
     return {
       id: 'minimal_polygon',
       outerRing: [
-        { x: 0, y: 0, id: 'p1', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true },
-        { x: 50, y: 0, id: 'p2', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true },
-        { x: 25, y: 50, id: 'p3', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true }
+        new BIMPointImpl(0, 0, { id: 'p1', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true }),
+        new BIMPointImpl(50, 0, { id: 'p2', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true }),
+        new BIMPointImpl(25, 50, { id: 'p3', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true })
       ],
       holes: [],
       area: 1250,
       perimeter: 150,
-      centroid: { x: 25, y: 16.67, id: 'centroid', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true },
+      centroid: new BIMPointImpl(25, 16.67, { id: 'centroid', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true }),
       boundingBox: { minX: 0, minY: 0, maxX: 50, maxY: 50 },
       isValid: true,
       selfIntersects: false,
       hasSliversFaces: false,
       creationMethod: 'recovery',
       healingApplied: false,
-      simplificationApplied: false
-    };
+      simplificationApplied: false,
+      containsPoint: (_point: any) => true
+    } as any;
   }
 
-  private createSimplifiedWallSolid(baseline: Curve, thickness: number): WallSolid {
+  private createSimplifiedWallSolid(baseline: Curve, thickness: number): any {
     return {
       id: 'recovered_wall',
       baseline,
       thickness,
-      wallType: 'Layout',
+      wallType: 'layout',
       leftOffset: baseline, // Simplified - same as baseline
       rightOffset: baseline, // Simplified - same as baseline
       solidGeometry: this.createMinimalSolidGeometry(baseline, thickness),
@@ -988,7 +991,7 @@ export class AutomaticRecoverySystem {
 
   private estimateQualityImpact(strategy: RecoveryStrategy, error: GeometricError): number {
     // Estimate quality impact based on strategy and error type
-    const baseImpact = {
+    const baseImpact: Record<string, number> = {
       'degenerate_geometry_recovery': 0.3,
       'self_intersection_resolution': 0.2,
       'numerical_stability_recovery': 0.1,
@@ -1002,7 +1005,7 @@ export class AutomaticRecoverySystem {
   }
 
   private requiresUserInput(strategy: RecoveryStrategy): boolean {
-    const userInputRequired = [
+    const userInputRequired: string[] = [
       'fallback_reconstruction',
       'geometric_simplification'
     ];

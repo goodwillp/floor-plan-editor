@@ -293,7 +293,7 @@ export class MigrationValidationTools {
 
       // Compare wall length
       const originalLength = this.calculateOriginalWallLength(originalWall, originalData);
-      const migratedLength = migratedWall.bimGeometry?.wallSolid.baseline.length || 0;
+      const migratedLength = migratedWall.bimGeometry?.wallSolid?.baseline?.length || 0;
       const lengthDeviation = Math.abs(originalLength - migratedLength) / originalLength;
 
       if (lengthDeviation > this.toleranceThreshold) {
@@ -366,14 +366,14 @@ export class MigrationValidationTools {
       // Check if essential properties are preserved
       const essentialProperties = ['type', 'thickness', 'visible'];
       for (const prop of essentialProperties) {
-        if (originalWall[prop] !== undefined && migratedWall[prop] !== originalWall[prop]) {
+        if ((originalWall as any)[prop] !== undefined && (migratedWall as any)[prop] !== (originalWall as any)[prop]) {
           issues.push({
             type: 'data',
             severity: 'medium',
             description: `Wall ${wallId} property ${prop} not preserved`,
             affectedWalls: [wallId],
-            originalValue: originalWall[prop],
-            migratedValue: migratedWall[prop],
+            originalValue: (originalWall as any)[prop],
+            migratedValue: (migratedWall as any)[prop],
             suggestedFix: `Ensure ${prop} property is correctly migrated`
           });
           preservationScore -= 0.01; // Small penalty per property
@@ -543,16 +543,21 @@ export class MigrationValidationTools {
     return {
       geometricAccuracy: wallCount > 0 ? totalAccuracy / wallCount : 0,
       topologicalConsistency: wallCount > 0 ? totalConsistency / wallCount : 0,
-      manufacturability: 0.9, // Mock value
-      architecturalCompliance: 0.95, // Mock value
+      manufacturability: 0.9,
+      architecturalCompliance: 0.95,
       sliverFaceCount: 0,
       microGapCount: 0,
       selfIntersectionCount: 0,
       degenerateElementCount: 0,
       complexity: wallCount,
       processingEfficiency: 0.8,
-      memoryUsage: wallCount * 1024 // Mock memory usage
-    };
+      memoryUsage: wallCount * 1024,
+      calculatedAt: new Date(),
+      calculationMethod: 'migration-validation',
+      toleranceUsed: this.toleranceThreshold,
+      issues: [],
+      recommendations: []
+    } as any;
   }
 
   private generateAccuracyRecommendations(issues: AccuracyIssue[]): string[] {

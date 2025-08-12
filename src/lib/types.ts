@@ -9,10 +9,19 @@
 export enum WallType {
   LAYOUT = 'layout',
   ZONE = 'zone',
-  AREA = 'area'
+  AREA = 'area',
+  STRUCTURAL = 'structural',
+  PARTITION = 'partition',
+  CURTAIN = 'curtain'
 }
 
-export type WallTypeString = 'layout' | 'zone' | 'area';
+export type WallTypeString =
+  | 'layout'
+  | 'zone'
+  | 'area'
+  | 'structural'
+  | 'partition'
+  | 'curtain';
 export type NodeType = 'endpoint' | 'intersection' | 'junction';
 
 /**
@@ -69,7 +78,10 @@ export interface Wall {
 export const WALL_THICKNESS: Record<WallTypeString, number> = {
   [WallType.LAYOUT]: 350, // 350mm
   [WallType.ZONE]: 250,   // 250mm
-  [WallType.AREA]: 150    // 150mm
+  [WallType.AREA]: 150,   // 150mm
+  [WallType.STRUCTURAL]: 200,
+  [WallType.PARTITION]: 80,
+  [WallType.CURTAIN]: 50
 };
 
 /**

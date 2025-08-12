@@ -10,6 +10,7 @@ import { MiterCalculationEngine } from '../geometry/MiterCalculation';
 import { IntersectionCache } from './IntersectionCache';
 import type { WallSolid } from '../geometry/WallSolid';
 import type { BIMPoint } from '../geometry/BIMPoint';
+import { BIMPointImpl } from '../geometry/BIMPoint';
 import { IntersectionType, GeometricErrorType, ErrorSeverity } from '../types/BIMTypes';
 import { GeometricError } from '../validation/GeometricError';
 
@@ -327,7 +328,7 @@ export class IntersectionManager {
       };
     }
 
-    const validationResult = intersection.validate();
+    const validationResult = (intersection as any).validate();
     const recommendations: string[] = [];
 
     // Add specific recommendations based on validation results
@@ -524,25 +525,29 @@ export class IntersectionManager {
       const halfThickness = wall.thickness / 2;
 
       // Create approximate offset intersections
-      const leftOffset: BIMPoint = {
-        x: intersectionPoint.x - halfThickness,
-        y: intersectionPoint.y,
-        id: `offset_left_${wall.id}_${Date.now()}`,
-        tolerance: this.config.tolerance,
-        creationMethod: 'approximate_offset',
-        accuracy: 0.8,
-        validated: false
-      };
+      const leftOffset = new BIMPointImpl(
+        intersectionPoint.x - halfThickness,
+        intersectionPoint.y,
+        {
+          id: `offset_left_${wall.id}_${Date.now()}`,
+          tolerance: this.config.tolerance,
+          creationMethod: 'approximate_offset',
+          accuracy: 0.8,
+          validated: false
+        }
+      );
 
-      const rightOffset: BIMPoint = {
-        x: intersectionPoint.x + halfThickness,
-        y: intersectionPoint.y,
-        id: `offset_right_${wall.id}_${Date.now()}`,
-        tolerance: this.config.tolerance,
-        creationMethod: 'approximate_offset',
-        accuracy: 0.8,
-        validated: false
-      };
+      const rightOffset = new BIMPointImpl(
+        intersectionPoint.x + halfThickness,
+        intersectionPoint.y,
+        {
+          id: `offset_right_${wall.id}_${Date.now()}`,
+          tolerance: this.config.tolerance,
+          creationMethod: 'approximate_offset',
+          accuracy: 0.8,
+          validated: false
+        }
+      );
 
       offsetIntersections.push(leftOffset, rightOffset);
     }

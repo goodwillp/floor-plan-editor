@@ -5,6 +5,7 @@
 
 import type { WallSolid } from '../geometry/WallSolid';
 import type { BIMPoint } from '../geometry/BIMPoint';
+import { BIMPointImpl } from '../geometry/BIMPoint';
 import type { BooleanResult } from '../types/GeometricTypes';
 import { IntersectionType, GeometricErrorType, ErrorSeverity } from '../types/BIMTypes';
 import { GeometricError } from '../validation/GeometricError';
@@ -468,8 +469,8 @@ export class AdvancedIntersectionResolver {
       return {
         hasOverlap: false,
         overlapLength: 0,
-        overlapStart: { x: 0, y: 0, id: '', tolerance: 0, creationMethod: '', accuracy: 0, validated: false },
-        overlapEnd: { x: 0, y: 0, id: '', tolerance: 0, creationMethod: '', accuracy: 0, validated: false },
+        overlapStart: new BIMPointImpl(0, 0, { id: '', tolerance: 0, creationMethod: '', accuracy: 0, validated: false }),
+        overlapEnd: new BIMPointImpl(0, 0, { id: '', tolerance: 0, creationMethod: '', accuracy: 0, validated: false }),
         overlapPercentage: 0,
         resolutionMethod: 'not_parallel'
       };
@@ -482,8 +483,8 @@ export class AdvancedIntersectionResolver {
       return {
         hasOverlap: false,
         overlapLength: 0,
-        overlapStart: { x: 0, y: 0, id: '', tolerance: 0, creationMethod: '', accuracy: 0, validated: false },
-        overlapEnd: { x: 0, y: 0, id: '', tolerance: 0, creationMethod: '', accuracy: 0, validated: false },
+        overlapStart: new BIMPointImpl(0, 0, { id: '', tolerance: 0, creationMethod: '', accuracy: 0, validated: false }),
+        overlapEnd: new BIMPointImpl(0, 0, { id: '', tolerance: 0, creationMethod: '', accuracy: 0, validated: false }),
         overlapPercentage: 0,
         resolutionMethod: 'no_overlap'
       };
@@ -527,15 +528,13 @@ export class AdvancedIntersectionResolver {
       }
     }
 
-    return {
-      x: sumX / pointCount,
-      y: sumY / pointCount,
+    return new BIMPointImpl(sumX / pointCount, sumY / pointCount, {
       id: `junction_center_${Date.now()}`,
       tolerance: this.config.tolerance,
       creationMethod: 'centroid_calculation',
       accuracy: 0.9,
       validated: true
-    };
+    });
   }
 
   private calculateIntersectionAngles(walls: WallSolid[], center: BIMPoint): number[] {
@@ -582,21 +581,23 @@ export class AdvancedIntersectionResolver {
     // Simplified overlap calculation
     return {
       length: 10,
-      start: { x: 0, y: 0, id: '', tolerance: 0, creationMethod: '', accuracy: 0, validated: false },
-      end: { x: 10, y: 0, id: '', tolerance: 0, creationMethod: '', accuracy: 0, validated: false }
+      start: new BIMPointImpl(0, 0, { id: '', tolerance: 0, creationMethod: '', accuracy: 0, validated: false }),
+      end: new BIMPointImpl(10, 0, { id: '', tolerance: 0, creationMethod: '', accuracy: 0, validated: false })
     };
   }
 
   private calculateOverlapMidpoint(overlapResult: ParallelOverlapResult): BIMPoint {
-    return {
-      x: (overlapResult.overlapStart.x + overlapResult.overlapEnd.x) / 2,
-      y: (overlapResult.overlapStart.y + overlapResult.overlapEnd.y) / 2,
-      id: `overlap_midpoint_${Date.now()}`,
-      tolerance: this.config.tolerance,
-      creationMethod: 'overlap_midpoint',
-      accuracy: 0.9,
-      validated: true
-    };
+    return new BIMPointImpl(
+      (overlapResult.overlapStart.x + overlapResult.overlapEnd.x) / 2,
+      (overlapResult.overlapStart.y + overlapResult.overlapEnd.y) / 2,
+      {
+        id: `overlap_midpoint_${Date.now()}`,
+        tolerance: this.config.tolerance,
+        creationMethod: 'overlap_midpoint',
+        accuracy: 0.9,
+        validated: true
+      }
+    );
   }
 
   private calculateNetworkComplexity(walls: WallSolid[]): number {

@@ -129,4 +129,11 @@ export interface DatabaseAbstractionLayer {
   vacuum(): Promise<void>;
   analyze(): Promise<void>;
   getStatistics(): Promise<Record<string, any>>;
+
+  // Optional backup APIs used by migration layer
+  saveBackup?(backupId: string, data: string, metadata: Record<string, any>): Promise<void>;
+  loadBackup?(backupId: string): Promise<{ data: string; metadata: any } | null>;
+  clearAllWalls?(): Promise<void>;
+  listBackups?(): Promise<any[]>;
+  deleteBackup?(backupId: string): Promise<boolean>;
 }

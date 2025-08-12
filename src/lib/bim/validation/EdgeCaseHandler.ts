@@ -1,6 +1,6 @@
 import { Curve } from '../geometry/Curve';
-import { BIMPoint } from '../geometry/BIMPoint';
-import { Vector2D } from '../geometry/Vector2D';
+import { BIMPoint, BIMPointImpl } from '../geometry/BIMPoint';
+import { Vector2DImpl } from '../geometry/Vector2D';
 import { WallSolid } from '../geometry/WallSolid';
 import { EdgeCaseDetector, EdgeCaseResult, EdgeCaseType } from './EdgeCaseDetector';
 import { GeometricError, GeometricErrorType, ErrorSeverity } from './GeometricError';
@@ -202,9 +202,9 @@ export class EdgeCaseHandler {
     } catch (error) {
       return {
         success: false,
-        fixDescription: `Fix failed: ${error.message}`,
+        fixDescription: `Fix failed: ${error instanceof Error ? error.message : String(error)}`,
         modifiedElements: [],
-        warnings: [`Error applying fix: ${error.message}`]
+        warnings: [`Error applying fix: ${error instanceof Error ? error.message : String(error)}`]
       };
     }
   }
@@ -301,15 +301,13 @@ export class EdgeCaseHandler {
         const avgX = coincidentIndices.reduce((sum, idx) => sum + curve.points[idx].x, 0) / coincidentIndices.length;
         const avgY = coincidentIndices.reduce((sum, idx) => sum + curve.points[idx].y, 0) / coincidentIndices.length;
 
-        mergedPoints.push({
+        mergedPoints.push(new BIMPointImpl(avgX, avgY, {
           id: `merged_${currentPoint.id}`,
-          x: avgX,
-          y: avgY,
           tolerance: currentPoint.tolerance,
           creationMethod: 'coincident_merge',
-          accuracy: 0.9, // Slightly reduced accuracy due to averaging
+          accuracy: 0.9,
           validated: false
-        });
+        }));
       } else {
         mergedPoints.push(currentPoint);
       }
@@ -396,8 +394,8 @@ export class EdgeCaseHandler {
       const p2 = curve.points[i];
       const p3 = curve.points[i + 1];
 
-      const v1 = new Vector2D(p2.x - p1.x, p2.y - p1.y);
-      const v2 = new Vector2D(p3.x - p2.x, p3.y - p2.y);
+      const v1 = new Vector2DImpl(p2.x - p1.x, p2.y - p1.y);
+      const v2 = new Vector2DImpl(p3.x - p2.x, p3.y - p2.y);
 
       const angle = this.calculateAngleBetweenVectors(v1, v2);
 
@@ -413,15 +411,13 @@ export class EdgeCaseHandler {
           const midX = (p1.x + p3.x) / 2;
           const midY = (p1.y + p3.y) / 2;
           
-          curve.points[i] = {
+          curve.points[i] = new BIMPointImpl(midX, midY, {
             id: `angle_fix_${p2.id}`,
-            x: midX,
-            y: midY,
             tolerance: p2.tolerance,
             creationMethod: 'angle_fix',
             accuracy: 0.8,
             validated: false
-          };
+          });
           fixedCount++;
         } else {
           warnings.push(`Extreme angle at point ${i} requires manual intervention`);
@@ -593,10 +589,10 @@ export class EdgeCaseHandler {
   private cloneCurve(curve: Curve): Curve {
     return {
       ...curve,
-      points: curve.points.map(p => ({ ...p })),
-      tangents: curve.tangents ? curve.tangents.map(t => ({ ...t })) : undefined,
-      curvature: curve.curvature ? [...curve.curvature] : undefined
-    };
+      points: curve.points.map(p => new BIMPointImpl(p.x, p.y, p)),
+      tangents: (curve as any).tangents ? (curve as any).tangents.map((t: any) => ({ ...t })) : undefined,
+      curvature: (curve as any).curvature ? [...(curve as any).curvature] : undefined
+    } as any;
   }
 
   /**
@@ -629,9 +625,10 @@ export class EdgeCaseHandler {
       }
 
       curve.boundingBox = {
-        minX, maxX, minY, maxY,
-        width: maxX - minX,
-        height: maxY - minY
+        minX,
+        minY,
+        maxX,
+        maxY
       };
     }
   }
@@ -639,7 +636,7 @@ export class EdgeCaseHandler {
   /**
    * Calculate angle between two vectors
    */
-  private calculateAngleBetweenVectors(v1: Vector2D, v2: Vector2D): number {
+  private calculateAngleBetweenVectors(v1: any, v2: any): number {
     const dot = v1.dot(v2);
     const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
     const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);

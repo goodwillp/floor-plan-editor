@@ -14,6 +14,14 @@ export interface BIMPoint extends Point {
   creationMethod: string;
   accuracy: number;
   validated: boolean;
+
+  // Geometric operations
+  distanceTo(other: Point): number;
+  equals(other: Point, tolerance?: number): boolean;
+  offset(dx: number, dy: number): BIMPoint;
+  rotate(angle: number, center?: Point): BIMPoint;
+  scale(factor: number, center?: Point): BIMPoint;
+  toPoint(): Point;
 }
 
 /**

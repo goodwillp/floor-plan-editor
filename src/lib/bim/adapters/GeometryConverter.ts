@@ -7,9 +7,9 @@
  * Requirements: 9.1, 9.2, 9.3, 9.4, 9.5
  */
 
-import { WallSolid } from '../geometry/WallSolid';
-import { BIMPolygon } from '../geometry/BIMPolygon';
-import { BIMPoint } from '../geometry/BIMPoint';
+import { WallSolid, WallSolidImpl } from '../geometry/WallSolid';
+import { BIMPolygon, BIMPolygonImpl } from '../geometry/BIMPolygon';
+import { BIMPoint, BIMPointImpl } from '../geometry/BIMPoint';
 import { Curve } from '../geometry/Curve';
 import { CurveType } from '../types/BIMTypes';
 
@@ -325,41 +325,33 @@ export class GeometryConverter implements IGeometryConverter {
       }
 
       // Create BIM points for outer ring
-      const outerRing: BIMPoint[] = outerRingCoords.slice(0, -1).map((coord, index) => ({
-        id: `martinez_point_${metadata.id}_${index}`,
-        x: coord[0],
-        y: coord[1],
-        tolerance: this.defaultTolerance,
-        creationMethod: 'martinez_conversion',
-        accuracy: 0.95,
-        validated: false,
-        distanceTo: function(other) { 
-          return Math.sqrt((other.x - this.x) ** 2 + (other.y - this.y) ** 2); 
-        },
-        equals: function(other, tolerance = 1e-6) { 
-          return this.distanceTo(other) <= tolerance; 
+      const outerRing: BIMPoint[] = outerRingCoords.slice(0, -1).map((coord, index) => new BIMPointImpl(
+        coord[0],
+        coord[1],
+        {
+          id: `martinez_point_${metadata.id}_${index}`,
+          tolerance: this.defaultTolerance,
+          creationMethod: 'martinez_conversion',
+          accuracy: 0.95,
+          validated: false
         }
-      }));
+      ));
 
       // Create BIM points for holes
       const holes: BIMPoint[][] = [];
       for (let i = 1; i < polygon.coordinates.length; i++) {
         const holeCoords = polygon.coordinates[i];
-        const hole: BIMPoint[] = holeCoords.slice(0, -1).map((coord, index) => ({
-          id: `martinez_hole_${metadata.id}_${i}_${index}`,
-          x: coord[0],
-          y: coord[1],
-          tolerance: this.defaultTolerance,
-          creationMethod: 'martinez_conversion',
-          accuracy: 0.95,
-          validated: false,
-          distanceTo: function(other) { 
-            return Math.sqrt((other.x - this.x) ** 2 + (other.y - this.y) ** 2); 
-          },
-          equals: function(other, tolerance = 1e-6) { 
-            return this.distanceTo(other) <= tolerance; 
+        const hole: BIMPoint[] = holeCoords.slice(0, -1).map((coord, index) => new BIMPointImpl(
+          coord[0],
+          coord[1],
+          {
+            id: `martinez_hole_${metadata.id}_${i}_${index}`,
+            tolerance: this.defaultTolerance,
+            creationMethod: 'martinez_conversion',
+            accuracy: 0.95,
+            validated: false
           }
-        }));
+        ));
         holes.push(hole);
       }
 
@@ -576,36 +568,10 @@ export class GeometryConverter implements IGeometryConverter {
     thickness: number,
     sourcePolygon: BIMPolygon
   ): Promise<WallSolid> {
-    // This would use the actual WallSolidImpl in a real implementation
-    // For now, return a simplified mock
-    return {
-      id: `wall_solid_${baseline.id}`,
-      baseline,
-      thickness,
-      wallType: 'Layout' as any,
-      leftOffset: baseline,
-      rightOffset: baseline,
-      solidGeometry: [sourcePolygon],
-      joinTypes: new Map(),
-      intersectionData: [],
-      healingHistory: [],
-      geometricQuality: {
-        geometricAccuracy: 0.9,
-        topologicalConsistency: 1.0,
-        manufacturability: 0.85,
-        architecturalCompliance: 1.0,
-        sliverFaceCount: 0,
-        microGapCount: 0,
-        selfIntersectionCount: 0,
-        degenerateElementCount: 0,
-        complexity: 5,
-        processingEfficiency: 0.8,
-        memoryUsage: 256
-      },
-      lastValidated: new Date(),
-      processingTime: 0,
-      complexity: 5
-    } as WallSolid;
+    const solid = new WallSolidImpl(baseline, thickness, 'layout', {
+      solidGeometry: [sourcePolygon]
+    });
+    return solid;
   }
 
   private async generatePolygonFromBaseline(baseline: Curve, thickness: number): Promise<BIMPolygon> {
@@ -623,23 +589,24 @@ export class GeometryConverter implements IGeometryConverter {
 
     for (let i = 0; i < points.length; i++) {
       const point = points[i];
-      // Simplified offset - just move perpendicular to the line
       const offsetX = halfThickness;
       const offsetY = 0;
 
-      leftPoints.push({
-        ...point,
+      leftPoints.push(new BIMPointImpl(point.x - offsetX, point.y - offsetY, {
         id: `left_${point.id}`,
-        x: point.x - offsetX,
-        y: point.y - offsetY
-      });
+        tolerance: point.tolerance,
+        creationMethod: 'generated_left_offset',
+        accuracy: point.accuracy,
+        validated: false
+      }));
 
-      rightPoints.push({
-        ...point,
+      rightPoints.push(new BIMPointImpl(point.x + offsetX, point.y + offsetY, {
         id: `right_${point.id}`,
-        x: point.x + offsetX,
-        y: point.y + offsetY
-      });
+        tolerance: point.tolerance,
+        creationMethod: 'generated_right_offset',
+        accuracy: point.accuracy,
+        validated: false
+      }));
     }
 
     // Create polygon by connecting left and right points
@@ -679,21 +646,13 @@ export class GeometryConverter implements IGeometryConverter {
     centroidX /= outerRing.length;
     centroidY /= outerRing.length;
 
-    const centroid: BIMPoint = {
+    const centroid: BIMPoint = new BIMPointImpl(centroidX, centroidY, {
       id: `centroid_${id}`,
-      x: centroidX,
-      y: centroidY,
       tolerance: this.defaultTolerance,
       creationMethod: 'calculated',
       accuracy: 1.0,
-      validated: true,
-      distanceTo: function(other) { 
-        return Math.sqrt((other.x - this.x) ** 2 + (other.y - this.y) ** 2); 
-      },
-      equals: function(other, tolerance = 1e-6) { 
-        return this.distanceTo(other) <= tolerance; 
-      }
-    };
+      validated: true
+    });
 
     // Calculate bounding box
     const xs = outerRing.map(p => p.x);
@@ -705,26 +664,10 @@ export class GeometryConverter implements IGeometryConverter {
       maxY: Math.max(...ys)
     };
 
-    return {
-      id,
-      outerRing,
-      holes,
-      area,
-      perimeter,
-      centroid,
-      boundingBox,
-      isValid: true,
-      selfIntersects: false,
-      hasSliversFaces: false,
-      creationMethod: 'geometry_converter',
-      healingApplied: false,
-      simplificationApplied: false,
-      containsPoint: function(point) {
-        // Simplified point-in-polygon test
-        return this.boundingBox.minX <= point.x && point.x <= this.boundingBox.maxX &&
-               this.boundingBox.minY <= point.y && point.y <= this.boundingBox.maxY;
-      }
-    };
+    const poly = new BIMPolygonImpl(outerRing, holes, { id, creationMethod: 'geometry_converter' });
+    // Access cached getters to compute lazy values
+    void poly.area; void poly.perimeter; void poly.centroid; void poly.boundingBox; void poly.isValid;
+    return poly;
   }
 
   private douglasPeuckerSimplify(points: BIMPoint[], tolerance: number): BIMPoint[] {

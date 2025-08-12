@@ -458,8 +458,10 @@ export class AdaptiveToleranceManager {
   private cacheToleranceResult(key: string, result: ToleranceResult): void {
     // Implement LRU cache behavior
     if (this.toleranceCache.size >= this.maxCacheSize) {
-      const firstKey = this.toleranceCache.keys().next().value;
-      this.toleranceCache.delete(firstKey);
+      const firstKey = this.toleranceCache.keys().next().value as string | undefined;
+      if (firstKey !== undefined) {
+        this.toleranceCache.delete(firstKey);
+      }
     }
     
     this.toleranceCache.set(key, result);

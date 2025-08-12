@@ -637,10 +637,10 @@ export class PerformanceBenchmarkSuite {
   /**
    * Generate a single test wall
    */
-  private generateTestWall(): WallSolid {
+  private generateTestWall(): any {
     const points = [
-      { x: Math.random() * 1000, y: Math.random() * 1000, id: 'p1', tolerance: 0.001, creationMethod: 'benchmark', accuracy: 1.0, validated: true },
-      { x: Math.random() * 1000, y: Math.random() * 1000, id: 'p2', tolerance: 0.001, creationMethod: 'benchmark', accuracy: 1.0, validated: true }
+      { x: Math.random() * 1000, y: Math.random() * 1000, id: 'p1', tolerance: 0.001, creationMethod: 'benchmark', accuracy: 1.0, validated: true } as any,
+      { x: Math.random() * 1000, y: Math.random() * 1000, id: 'p2', tolerance: 0.001, creationMethod: 'benchmark', accuracy: 1.0, validated: true } as any
     ];
 
     return {
@@ -653,10 +653,10 @@ export class PerformanceBenchmarkSuite {
         length: 100,
         boundingBox: { minX: 0, minY: 0, maxX: 1000, maxY: 1000 },
         curvature: [0, 0],
-        tangents: [{ x: 1, y: 0 }, { x: 1, y: 0 }]
+        tangents: [] as any
       },
       thickness: 100,
-      wallType: 'Layout' as any,
+      wallType: 'layout' as any,
       leftOffset: null as any,
       rightOffset: null as any,
       solidGeometry: [],
@@ -679,7 +679,7 @@ export class PerformanceBenchmarkSuite {
       lastValidated: new Date(),
       processingTime: 0,
       complexity: 1
-    };
+    } as any;
   }
 
   /**
@@ -701,7 +701,7 @@ export class PerformanceBenchmarkSuite {
   /**
    * Generate a test wall with errors
    */
-  private generateTestWallWithErrors(): WallSolid {
+  private generateTestWallWithErrors(): any {
     const wall = this.generateTestWall();
     
     // Introduce some issues
@@ -728,15 +728,13 @@ export class PerformanceBenchmarkSuite {
     
     const randomType = errorTypes[Math.floor(Math.random() * errorTypes.length)];
     
-    return new GeometricError(
-      randomType,
-      ErrorSeverity.ERROR,
-      'benchmark_test',
-      {},
-      'Benchmark test error',
-      'Test fix',
-      true
-    );
+    return new GeometricError(randomType, 'Benchmark test error', {
+      severity: ErrorSeverity.ERROR,
+      operation: 'benchmark_test',
+      input: {},
+      suggestedFix: 'Test fix',
+      recoverable: true
+    });
   }
 
   /**

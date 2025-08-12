@@ -273,7 +273,7 @@ export const DEPRECATED_UI_COMPONENTS: DeprecatedUIComponent[] = [
 /**
  * Migration priority matrix based on impact and effort
  */
-export const MIGRATION_PRIORITIES = {
+export const MIGRATION_PRIORITIES: Record<string, string[]> = {
   critical: [
     'wall-renderer-basic-offset',
     'geometry-service-fixed-tolerance',
@@ -302,7 +302,7 @@ export const MIGRATION_PRIORITIES = {
 /**
  * Dependency graph for migration planning
  */
-export const MIGRATION_DEPENDENCIES = {
+export const MIGRATION_DEPENDENCIES: Record<string, string[]> = {
   'AdaptiveToleranceManager': [
     'geometry-service-fixed-tolerance',
     'wall-renderer-hardcoded-tolerance',
@@ -329,7 +329,7 @@ export const MIGRATION_DEPENDENCIES = {
  * Get deprecated methods by category
  */
 export function getDeprecatedMethodsByCategory(category: string): DeprecatedMethod[] {
-  return DEPRECATED_METHODS.filter(method => method.category === category);
+  return DEPRECATED_METHODS.filter(method => method.category === (category as any));
 }
 
 /**
@@ -348,7 +348,7 @@ export function getMigrationPriority(itemId: string): string {
  * Get dependencies for a BIM component
  */
 export function getDependentItems(componentName: string): string[] {
-  return MIGRATION_DEPENDENCIES[componentName] || [];
+  return (MIGRATION_DEPENDENCIES as any)[componentName] || [];
 }
 
 /**
@@ -382,16 +382,16 @@ export function getImpactAnalysis(): {
   const impact = { high: 0, medium: 0, low: 0, byCategory: {} };
   
   DEPRECATED_METHODS.forEach(method => {
-    impact[method.impact]++;
-    impact.byCategory[method.category] = (impact.byCategory[method.category] || 0) + 1;
+    (impact as any)[method.impact]++;
+    (impact.byCategory as any)[method.category] = ((impact.byCategory as any)[method.category] || 0) + 1;
   });
   
   DEPRECATED_CONSTANTS.forEach(constant => {
-    impact[constant.impact]++;
+    (impact as any)[constant.impact]++;
   });
   
   DEPRECATED_UI_COMPONENTS.forEach(component => {
-    impact[component.impact]++;
+    (impact as any)[component.impact]++;
   });
   
   return impact;

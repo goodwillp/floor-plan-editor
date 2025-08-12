@@ -4,6 +4,7 @@
  */
 
 import type { BIMPoint } from './BIMPoint';
+import { BIMPointImpl } from './BIMPoint';
 import type { Vector2D } from './Vector2D';
 import { Vector2DImpl } from './Vector2D';
 import { OffsetJoinType, GeometricErrorType, ErrorSeverity } from '../types/BIMTypes';
@@ -247,15 +248,17 @@ export class MiterCalculationEngine {
 
     } catch (error) {
       // Fallback to simple midpoint calculation
-      const fallbackApex: BIMPoint = {
-        x: (leftIntersection.x + rightIntersection.x) / 2,
-        y: (leftIntersection.y + rightIntersection.y) / 2,
-        id: `fallback_apex_${Date.now()}`,
-        tolerance: this.tolerance,
-        creationMethod: 'fallback_midpoint',
-        accuracy: 0.5,
-        validated: false
-      };
+      const fallbackApex: BIMPoint = new BIMPointImpl(
+        (leftIntersection.x + rightIntersection.x) / 2,
+        (leftIntersection.y + rightIntersection.y) / 2,
+        {
+          id: `fallback_apex_${Date.now()}`,
+          tolerance: this.tolerance,
+          creationMethod: 'fallback_midpoint',
+          accuracy: 0.5,
+          validated: false
+        }
+      );
 
       return new MiterCalculationImpl({
         apex: fallbackApex,
@@ -335,15 +338,17 @@ export class MiterCalculationEngine {
 
       // Calculate apex position along bisector
       const apexDistance = Math.abs(leftVector.magnitude()) / Math.cos(angle / 2);
-      const apex: BIMPoint = {
-        x: baselinePoint.x + bisector.x * apexDistance,
-        y: baselinePoint.y + bisector.y * apexDistance,
+    const apex: BIMPoint = new BIMPointImpl(
+      baselinePoint.x + bisector.x * apexDistance,
+      baselinePoint.y + bisector.y * apexDistance,
+      {
         id: `miter_apex_${Date.now()}`,
         tolerance: this.tolerance,
         creationMethod: 'miter_bisector',
         accuracy: 0.95,
         validated: true
-      };
+      }
+    );
 
       return {
         apex,
@@ -383,15 +388,17 @@ export class MiterCalculationEngine {
       baselinePoint, rightEnd
     );
 
-    const apex: BIMPoint = {
-      x: intersection.x,
-      y: intersection.y,
-      id: `miter_apex_fallback_${Date.now()}`,
-      tolerance: this.tolerance,
-      creationMethod: 'line_intersection_fallback',
-      accuracy: 0.8,
-      validated: true
-    };
+    const apex: BIMPoint = new BIMPointImpl(
+      intersection.x,
+      intersection.y,
+      {
+        id: `miter_apex_fallback_${Date.now()}`,
+        tolerance: this.tolerance,
+        creationMethod: 'line_intersection_fallback',
+        accuracy: 0.8,
+        validated: true
+      }
+    );
 
     return {
       apex,
@@ -405,15 +412,17 @@ export class MiterCalculationEngine {
    * Compute bevel apex point (midpoint of offset intersections)
    */
   private computeBevelApexPoint(leftIntersection: BIMPoint, rightIntersection: BIMPoint): BIMPoint {
-    return {
-      x: (leftIntersection.x + rightIntersection.x) / 2,
-      y: (leftIntersection.y + rightIntersection.y) / 2,
-      id: `bevel_apex_${Date.now()}`,
-      tolerance: this.tolerance,
-      creationMethod: 'bevel_midpoint',
-      accuracy: 0.9,
-      validated: true
-    };
+    return new BIMPointImpl(
+      (leftIntersection.x + rightIntersection.x) / 2,
+      (leftIntersection.y + rightIntersection.y) / 2,
+      {
+        id: `bevel_apex_${Date.now()}`,
+        tolerance: this.tolerance,
+        creationMethod: 'bevel_midpoint',
+        accuracy: 0.9,
+        validated: true
+      }
+    );
   }
 
   /**
@@ -425,16 +434,17 @@ export class MiterCalculationEngine {
     baselinePoint: BIMPoint
   ): BIMPoint {
     // For round joins, the apex is typically the baseline point
-    // In a full implementation, this would be the center of the arc
-    return {
-      x: baselinePoint.x,
-      y: baselinePoint.y,
-      id: `round_apex_${Date.now()}`,
-      tolerance: this.tolerance,
-      creationMethod: 'round_center',
-      accuracy: 0.85,
-      validated: true
-    };
+    return new BIMPointImpl(
+      baselinePoint.x,
+      baselinePoint.y,
+      {
+        id: `round_apex_${Date.now()}`,
+        tolerance: this.tolerance,
+        creationMethod: 'round_center',
+        accuracy: 0.85,
+        validated: true
+      }
+    );
   }
 
   /**

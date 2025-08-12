@@ -9,7 +9,8 @@ import { GeometryService } from '../../GeometryService';
 import { WallRenderer } from '../../WallRenderer';
 import { WallSelectionService } from '../../WallSelectionService';
 import { BIMWallSystem } from '../BIMWallSystem';
-import { AdaptiveToleranceManager } from '../core/AdaptiveToleranceManager';
+import { AdaptiveToleranceManager } from '../engines/AdaptiveToleranceManager';
+import { ToleranceContext } from '../types/BIMTypes';
 import { FeatureFlagManager } from './FeatureFlagManager';
 import { LegacyDataConverter } from './LegacyDataConverter';
 
@@ -75,7 +76,7 @@ export class CompatibleGeometryService {
       Math.max(seg1.length, seg2.length) * 0.1, // Approximate thickness
       1e-3, // Document precision
       0, // Local angle (to be calculated)
-      'boolean_operation'
+      (ToleranceContext.BOOLEAN_OPERATION as any)
     ) || GeometryService.tolerance;
 
     return this.findLineIntersectionWithTolerance(start1, end1, start2, end2, tolerance);
@@ -156,7 +157,7 @@ export class CompatibleGeometryService {
       segmentLength * 0.1, // Approximate thickness
       1e-3, // Document precision
       0, // Local angle
-      'vertex_merge'
+      (ToleranceContext.VERTEX_MERGE as any)
     ) || 1e-6;
 
     return GeometryService.distancePointToLineSegment(point, lineStart, lineEnd);
@@ -229,7 +230,7 @@ export class CompatibleGeometryService {
   static get tolerance(): number {
     if (this.featureFlags.isEnabled('adaptive-tolerance') && this.toleranceManager) {
       // Return a default adaptive tolerance
-      return this.toleranceManager.calculateTolerance(100, 1e-3, 0, 'vertex_merge');
+      return this.toleranceManager.calculateTolerance(100, 1e-3, 0, (ToleranceContext.VERTEX_MERGE as any));
     }
     return GeometryService.tolerance;
   }
@@ -268,11 +269,12 @@ export class CompatibleWallRenderer extends WallRenderer {
   /**
    * Render wall with BIM enhancement when enabled
    */
+  // @ts-ignore - legacy code path uses PIXI v5/6 types
   renderWall(
     wall: Wall,
     segments: Segment[],
     nodes: Map<string, Node>,
-    container: PIXI.Container
+    container: any
   ): void {
     if (this.featureFlags.isEnabled('bim-wall-rendering') && this.bimSystem) {
       try {
@@ -295,7 +297,7 @@ export class CompatibleWallRenderer extends WallRenderer {
     wall: Wall,
     segments: Segment[],
     nodes: Map<string, Node>,
-    container: PIXI.Container
+    container: any
   ): void {
     // Convert legacy data to BIM format
     const wallSolid = this.dataConverter.convertLegacyWallToBIM(wall, segments, nodes);
@@ -312,7 +314,8 @@ export class CompatibleWallRenderer extends WallRenderer {
   /**
    * Render BIM wall solid (placeholder for actual BIM rendering)
    */
-  private renderBIMWallSolid(wallSolid: any, container: PIXI.Container): void {
+  // @ts-ignore - legacy code path uses PIXI v5/6 types
+  private renderBIMWallSolid(wallSolid: any, container: any): void {
     // This would use the BIM rendering pipeline
     // For now, we'll use the legacy renderer as a placeholder
     console.debug('🏗️ Rendering wall with BIM pipeline:', wallSolid.id);

@@ -1,4 +1,5 @@
 import type { WallSolid } from '../geometry/WallSolid';
+import { BIMPointImpl } from '../geometry/BIMPoint';
 import type { Curve } from '../geometry/Curve';
 import type { BIMPolygon } from '../geometry/BIMPolygon';
 import { GeometricError, GeometricErrorType, ErrorSeverity } from './GeometricError';
@@ -549,8 +550,8 @@ export class ValidationPipeline {
           if (recoveredData.baseline.points.length < 2) {
             // Add a minimal valid baseline
             recoveredData.baseline.points = [
-              { x: 0, y: 0, id: 'recovery_1', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true },
-              { x: 100, y: 0, id: 'recovery_2', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true }
+              new BIMPointImpl(0, 0, { id: 'recovery_1', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true }),
+              new BIMPointImpl(100, 0, { id: 'recovery_2', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true })
             ];
             qualityImpact += 0.3;
             warnings.push('Added minimal baseline for degenerate geometry');
@@ -606,9 +607,9 @@ export class ValidationPipeline {
         if (polygon.outerRing.length < 3) {
           // Create a minimal triangle
           recoveredPolygon.outerRing = [
-            { x: 0, y: 0, id: 'recovery_1', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true },
-            { x: 50, y: 0, id: 'recovery_2', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true },
-            { x: 25, y: 50, id: 'recovery_3', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true }
+            new BIMPointImpl(0, 0, { id: 'recovery_1', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true }),
+            new BIMPointImpl(50, 0, { id: 'recovery_2', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true }),
+            new BIMPointImpl(25, 50, { id: 'recovery_3', tolerance: 0.001, creationMethod: 'recovery', accuracy: 0.8, validated: true })
           ];
           qualityImpact += 0.4;
           warnings.push('Created minimal triangle for degenerate polygon');

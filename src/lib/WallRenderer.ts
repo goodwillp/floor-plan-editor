@@ -365,6 +365,38 @@ export class WallRenderer {
           lineAlpha: 1.0,
           lineWidth: 1
         }
+      case 'structural':
+        return {
+          fillColor: 0x1E3A8A,
+          fillAlpha: 0.85,
+          lineColor: 0x1E40AF,
+          lineAlpha: 1.0,
+          lineWidth: 2.5
+        }
+      case 'partition':
+        return {
+          fillColor: 0xF59E0B,
+          fillAlpha: 0.65,
+          lineColor: 0xB45309,
+          lineAlpha: 1.0,
+          lineWidth: 1
+        }
+      case 'curtain':
+        return {
+          fillColor: 0x9333EA,
+          fillAlpha: 0.5,
+          lineColor: 0x7E22CE,
+          lineAlpha: 1.0,
+          lineWidth: 1
+        }
+      default:
+        return {
+          fillColor: 0x718096,
+          fillAlpha: 0.6,
+          lineColor: 0x4A5568,
+          lineAlpha: 1.0,
+          lineWidth: 1
+        }
     }
   }
 
@@ -676,6 +708,14 @@ export class WallRenderer {
         return 'Zone Wall (250mm)'
       case 'area':
         return 'Area Wall (150mm)'
+      case 'structural':
+        return 'Structural Wall (200mm)'
+      case 'partition':
+        return 'Partition Wall (80mm)'
+      case 'curtain':
+        return 'Curtain Wall (50mm)'
+      default:
+        return 'Wall'
     }
   }
 }
