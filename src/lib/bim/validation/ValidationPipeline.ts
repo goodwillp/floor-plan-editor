@@ -1,8 +1,17 @@
-import { WallSolid } from '../geometry/WallSolid';
-import { Curve } from '../geometry/Curve';
-import { BIMPolygon } from '../geometry/BIMPolygon';
+import type { WallSolid } from '../geometry/WallSolid';
+import type { Curve } from '../geometry/Curve';
+import type { BIMPolygon } from '../geometry/BIMPolygon';
 import { GeometricError, GeometricErrorType, ErrorSeverity } from './GeometricError';
-import { QualityMetrics } from '../types/QualityTypes';
+import type { QualityMetrics } from '../types/QualityTypes';
+
+// Type guard functions
+function isWallSolid(data: any): data is WallSolid {
+  return data && typeof data === 'object' && 'baseline' in data && 'thickness' in data && 'wallType' in data;
+}
+
+function isBIMPolygon(data: any): data is BIMPolygon {
+  return data && typeof data === 'object' && 'vertices' in data && Array.isArray(data.vertices);
+}
 
 export interface ValidationStage {
   name: string;
@@ -127,12 +136,14 @@ export class ValidationPipeline {
       } catch (error) {
         const stageError = new GeometricError(
           GeometricErrorType.VALIDATION_FAILURE,
-          ErrorSeverity.CRITICAL,
-          `Validation stage ${stageName}`,
-          currentData,
           `Validation stage failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          'Check validation stage implementation',
-          false
+          {
+            severity: ErrorSeverity.CRITICAL,
+            operation: `Validation stage ${stageName}`,
+            input: currentData,
+            suggestedFix: 'Check validation stage implementation',
+            recoverable: false
+          }
         );
 
         stageResults.set(stageName, {
@@ -228,17 +239,19 @@ export class ValidationPipeline {
     const errors: GeometricError[] = [];
     const warnings: string[] = [];
 
-    if (data instanceof WallSolid) {
+    if (isWallSolid(data)) {
       // Check baseline curve validity
       if (!data.baseline || data.baseline.points.length < 2) {
         errors.push(new GeometricError(
           GeometricErrorType.DEGENERATE_GEOMETRY,
-          ErrorSeverity.ERROR,
-          'Baseline validation',
-          data,
           'Wall baseline has insufficient points',
-          'Ensure baseline has at least 2 points',
-          true
+          {
+            severity: ErrorSeverity.ERROR,
+            operation: 'Baseline validation',
+            input: data,
+            suggestedFix: 'Ensure baseline has at least 2 points',
+            recoverable: true
+          }
         ));
       }
 
@@ -246,12 +259,14 @@ export class ValidationPipeline {
       if (data.thickness <= 0) {
         errors.push(new GeometricError(
           GeometricErrorType.INVALID_PARAMETER,
-          ErrorSeverity.ERROR,
-          'Thickness validation',
-          data,
           'Wall thickness must be positive',
-          'Set thickness to a positive value',
-          true
+          {
+            severity: ErrorSeverity.ERROR,
+            operation: 'Thickness validation',
+            input: data,
+            suggestedFix: 'Set thickness to a positive value',
+            recoverable: true
+          }
         ));
       }
 
@@ -259,12 +274,14 @@ export class ValidationPipeline {
       if (this.hasSelfIntersections(data.baseline)) {
         errors.push(new GeometricError(
           GeometricErrorType.SELF_INTERSECTION,
-          ErrorSeverity.WARNING,
-          'Self-intersection check',
-          data,
           'Baseline curve has self-intersections',
-          'Simplify curve or resolve intersections',
-          true
+          {
+            severity: ErrorSeverity.WARNING,
+            operation: 'Self-intersection check',
+            input: data,
+            suggestedFix: 'Simplify curve or resolve intersections',
+            recoverable: true
+          }
         ));
       }
     }
@@ -286,18 +303,20 @@ export class ValidationPipeline {
     const errors: GeometricError[] = [];
     const warnings: string[] = [];
 
-    if (data instanceof WallSolid && data.solidGeometry) {
+    if (isWallSolid(data) && data.solidGeometry) {
       for (const polygon of data.solidGeometry) {
         // Check for valid polygon structure
         if (polygon.outerRing.length < 3) {
           errors.push(new GeometricError(
             GeometricErrorType.DEGENERATE_GEOMETRY,
-            ErrorSeverity.ERROR,
-            'Polygon validation',
-            polygon,
             'Polygon has insufficient vertices',
-            'Ensure polygon has at least 3 vertices',
-            true
+            {
+              severity: ErrorSeverity.ERROR,
+              operation: 'Polygon validation',
+              input: polygon,
+              suggestedFix: 'Ensure polygon has at least 3 vertices',
+              recoverable: true
+            }
           ));
         }
 
@@ -310,12 +329,14 @@ export class ValidationPipeline {
         if (this.hasDuplicateConsecutiveVertices(polygon.outerRing)) {
           errors.push(new GeometricError(
             GeometricErrorType.DUPLICATE_VERTICES,
-            ErrorSeverity.WARNING,
-            'Duplicate vertex check',
-            polygon,
             'Polygon has duplicate consecutive vertices',
-            'Remove duplicate vertices',
-            true
+            {
+              severity: ErrorSeverity.WARNING,
+              operation: 'Duplicate vertex check',
+              input: polygon,
+              suggestedFix: 'Remove duplicate vertices',
+              recoverable: true
+            }
           ));
         }
       }
@@ -337,7 +358,7 @@ export class ValidationPipeline {
     const errors: GeometricError[] = [];
     const warnings: string[] = [];
 
-    if (data instanceof WallSolid) {
+    if (isWallSolid(data)) {
       // Check for extremely small segments
       const minSegmentLength = 1e-6;
       for (let i = 0; i < data.baseline.points.length - 1; i++) {
@@ -348,12 +369,14 @@ export class ValidationPipeline {
         if (distance < minSegmentLength) {
           errors.push(new GeometricError(
             GeometricErrorType.NUMERICAL_INSTABILITY,
-            ErrorSeverity.WARNING,
-            'Segment length check',
-            data,
             `Segment length ${distance} is too small`,
-            'Remove or merge small segments',
-            true
+            {
+              severity: ErrorSeverity.WARNING,
+              operation: 'Segment length check',
+              input: data,
+              suggestedFix: 'Remove or merge small segments',
+              recoverable: true
+            }
           ));
         }
       }
@@ -372,7 +395,7 @@ export class ValidationPipeline {
       errors,
       warnings,
       metrics: {
-        numericalStability: errors.length === 0 ? 1.0 : 0.7
+        geometricAccuracy: errors.length === 0 ? 1.0 : 0.7
       },
       processingTime: performance.now() - startTime
     };
@@ -383,7 +406,7 @@ export class ValidationPipeline {
     const errors: GeometricError[] = [];
     const warnings: string[] = [];
 
-    if (data instanceof WallSolid && data.geometricQuality) {
+    if (isWallSolid(data) && data.geometricQuality) {
       const quality = data.geometricQuality;
       
       // Check quality thresholds
@@ -402,12 +425,14 @@ export class ValidationPipeline {
       if (quality.selfIntersectionCount > 0) {
         errors.push(new GeometricError(
           GeometricErrorType.SELF_INTERSECTION,
-          ErrorSeverity.WARNING,
-          'Quality metrics check',
-          data,
           `Found ${quality.selfIntersectionCount} self-intersections`,
-          'Apply shape healing to resolve intersections',
-          true
+          {
+            severity: ErrorSeverity.WARNING,
+            operation: 'Quality metrics check',
+            input: data,
+            suggestedFix: 'Apply shape healing to resolve intersections',
+            recoverable: true
+          }
         ));
       }
     }
@@ -416,7 +441,7 @@ export class ValidationPipeline {
       passed: errors.filter(e => e.severity === ErrorSeverity.ERROR).length === 0,
       errors,
       warnings,
-      metrics: data instanceof WallSolid ? data.geometricQuality : {},
+      metrics: isWallSolid(data) ? data.geometricQuality : {},
       processingTime: performance.now() - startTime
     };
   }
@@ -426,7 +451,7 @@ export class ValidationPipeline {
     const errors: GeometricError[] = [];
     const warnings: string[] = [];
 
-    if (data instanceof WallSolid) {
+    if (isWallSolid(data)) {
       // Check complexity
       const vertexCount = data.baseline.points.length;
       if (vertexCount > 1000) {
@@ -450,7 +475,7 @@ export class ValidationPipeline {
       errors,
       warnings,
       metrics: {
-        processingEfficiency: data instanceof WallSolid ? 
+        processingEfficiency: isWallSolid(data) ? 
           Math.max(0, 1 - (data.processingTime / 1000)) : 1.0
       },
       processingTime: performance.now() - startTime
@@ -504,7 +529,7 @@ export class ValidationPipeline {
   }
 
   private recoverGeometricConsistency(data: any, errors: GeometricError[]): RecoveryResult {
-    if (!(data instanceof WallSolid)) {
+    if (!isWallSolid(data)) {
       return {
         success: false,
         recoveredData: data,
@@ -559,7 +584,7 @@ export class ValidationPipeline {
   }
 
   private recoverTopology(data: any, errors: GeometricError[]): RecoveryResult {
-    if (!(data instanceof WallSolid)) {
+    if (!isWallSolid(data)) {
       return {
         success: false,
         recoveredData: data,
@@ -617,7 +642,7 @@ export class ValidationPipeline {
   }
 
   private recoverNumericalStability(data: any, errors: GeometricError[]): RecoveryResult {
-    if (!(data instanceof WallSolid)) {
+    if (!isWallSolid(data)) {
       return {
         success: false,
         recoveredData: data,

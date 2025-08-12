@@ -53,13 +53,26 @@ export enum GeometricErrorType {
   SELF_INTERSECTION = 'self_intersection',
   DEGENERATE_GEOMETRY = 'degenerate_geometry',
   TOLERANCE_EXCEEDED = 'tolerance_exceeded',
-  NUMERICAL_INSTABILITY = 'numerical_instability'
+  NUMERICAL_INSTABILITY = 'numerical_instability',
+  DUPLICATE_VERTICES = 'duplicate_vertices',
+  VALIDATION_FAILURE = 'validation_failure',
+  COMPLEXITY_EXCEEDED = 'complexity_exceeded',
+  INVALID_PARAMETER = 'invalid_parameter',
+  TOPOLOGICAL_CONSISTENCY = 'topological_consistency',
+  DIMENSIONAL_ACCURACY = 'dimensional_accuracy',
+  STRUCTURAL_INTEGRITY = 'structural_integrity',
+  MANUFACTURING_FEASIBILITY = 'manufacturing_feasibility',
+  PERFORMANCE_OPTIMIZATION = 'performance_optimization',
+  TOPOLOGY_ERROR = 'topology_error'
 }
 
 /**
  * Error severity levels
  */
 export enum ErrorSeverity {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
   WARNING = 'warning',
   ERROR = 'error',
   CRITICAL = 'critical'

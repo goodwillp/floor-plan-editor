@@ -11,7 +11,7 @@ import type { BIMPolygon } from '../geometry/BIMPolygon';
 import type { BIMPoint } from '../geometry/BIMPoint';
 import { WallSolidImpl } from '../geometry/WallSolid';
 import { BIMPolygonImpl } from '../geometry/BIMPolygon';
-import { GeometricErrorFactory } from './GeometricError';
+// import { GeometricErrorFactory } from './GeometricError'; // Unused for now
 
 /**
  * Validation rule interface
@@ -195,7 +195,7 @@ export class GeometryValidator {
 
     // Check for duplicate consecutive points
     for (let i = 0; i < curve.points.length - 1; i++) {
-      if (curve.points[i].equals(curve.points[i + 1], this.tolerance)) {
+      if (this.pointsEqual(curve.points[i], curve.points[i + 1], this.tolerance)) {
         warnings.push(`Duplicate consecutive points at index ${i}`);
       }
     }
@@ -203,7 +203,7 @@ export class GeometryValidator {
     // Check for zero-length segments
     let zeroLengthSegments = 0;
     for (let i = 0; i < curve.points.length - 1; i++) {
-      const distance = curve.points[i].distanceTo(curve.points[i + 1]);
+      const distance = this.pointDistance(curve.points[i], curve.points[i + 1]);
       if (distance < this.tolerance) {
         zeroLengthSegments++;
       }
@@ -1142,7 +1142,7 @@ export class GeometryValidator {
     // Check for duplicate points
     let duplicatePoints = 0;
     for (let i = 0; i < curve.points.length - 1; i++) {
-      if (curve.points[i].distanceTo(curve.points[i + 1]) < this.tolerance) {
+      if (this.pointDistance(curve.points[i], curve.points[i + 1]) < this.tolerance) {
         duplicatePoints++;
       }
     }
@@ -1336,7 +1336,7 @@ export class GeometryValidator {
     const first = outerRing[0];
     const last = outerRing[outerRing.length - 1];
     
-    return first.distanceTo(last) <= this.tolerance;
+    return this.pointDistance(first, last) <= this.tolerance;
   }
 
   /**
@@ -1414,5 +1414,19 @@ export class GeometryValidator {
       severity: 'error',
       category: 'geometry'
     });
+  }
+
+  /**
+   * Helper method to check if two points are equal within tolerance
+   */
+  private pointsEqual(p1: BIMPoint, p2: BIMPoint, tolerance: number): boolean {
+    return Math.abs(p1.x - p2.x) < tolerance && Math.abs(p1.y - p2.y) < tolerance;
+  }
+
+  /**
+   * Helper method to calculate distance between two points
+   */
+  private pointDistance(p1: BIMPoint, p2: BIMPoint): number {
+    return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
   }
 }

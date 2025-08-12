@@ -1,6 +1,6 @@
 import { GeometricError, GeometricErrorType, ErrorSeverity } from './GeometricError';
-import { RecoveryRecommendation } from './AutomaticRecoverySystem';
-import { ValidationReport, UserGuidanceDocument } from './ValidationReportingSystem';
+import type { RecoveryRecommendation } from './AutomaticRecoverySystem';
+import type { UserGuidanceDocument } from './ValidationReportingSystem';
 
 export interface InteractiveGuidance {
   sessionId: string;

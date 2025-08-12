@@ -389,7 +389,7 @@ export class GeometricDebuggingTools {
   ): PixiGraphicsData[] {
     const graphics: PixiGraphicsData[] = [];
 
-    intersections.forEach((intersection, index) => {
+    intersections.forEach((intersection) => {
       // Main intersection point
       graphics.push({
         type: 'circle',
@@ -491,7 +491,7 @@ export class GeometricDebuggingTools {
     });
 
     // Add error markers for specific issues
-    validationResult.errors.forEach((error, errorIndex) => {
+    validationResult.errors.forEach((_error, errorIndex) => {
       // For now, place error markers at wall centroid
       // In a real implementation, errors would have specific locations
       const centroid = this.calculatePolygonCentroid(wallSolid.solidGeometry[0]);
@@ -513,7 +513,7 @@ export class GeometricDebuggingTools {
     });
 
     // Add warning markers
-    validationResult.warnings.forEach((warning, warningIndex) => {
+    validationResult.warnings.forEach((_warning, warningIndex) => {
       const centroid = this.calculatePolygonCentroid(wallSolid.solidGeometry[0]);
       
       graphics.push({
@@ -561,7 +561,9 @@ export class GeometricDebuggingTools {
     if (this.debugHistory.size >= this.maxHistorySize) {
       // Remove oldest entry
       const oldestKey = this.debugHistory.keys().next().value;
-      this.debugHistory.delete(oldestKey);
+      if (oldestKey) {
+        this.debugHistory.delete(oldestKey);
+      }
     }
     
     this.debugHistory.set(metadata.operationId, metadata);
@@ -612,7 +614,7 @@ export class GeometricDebuggingTools {
    * Create boolean operation elements
    */
   private createBooleanOperationElements(
-    inputSolids: WallSolid[],
+    _inputSolids: WallSolid[],
     result: BooleanResult
   ): DebugVisualElement[] {
     const elements: DebugVisualElement[] = [];

@@ -3,12 +3,16 @@
  * Requirements: 7.1, 7.2, 7.3, 7.4, 7.5
  */
 
-import type { GeometricErrorType, ErrorSeverity, ToleranceFailure } from '../types/BIMTypes';
+import { GeometricErrorType, ErrorSeverity, type ToleranceFailure } from '../types/BIMTypes';
+
+// Re-export types for other modules
+export { GeometricErrorType, ErrorSeverity } from '../types/BIMTypes';
 
 /**
  * Base geometric error class
  */
 export class GeometricError extends Error {
+  public readonly id: string;
   public readonly type: GeometricErrorType;
   public readonly severity: ErrorSeverity;
   public readonly operation: string;
@@ -16,6 +20,9 @@ export class GeometricError extends Error {
   public readonly suggestedFix: string;
   public readonly recoverable: boolean;
   public readonly timestamp: Date;
+  public readonly metadata: Record<string, any>;
+  public resolved: boolean = false;
+  public resolvedAt?: Date;
 
   constructor(
     type: GeometricErrorType,
@@ -30,6 +37,7 @@ export class GeometricError extends Error {
   ) {
     super(message);
     this.name = 'GeometricError';
+    this.id = `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     this.type = type;
     this.severity = options.severity || ErrorSeverity.ERROR;
     this.operation = options.operation || 'unknown';
@@ -37,6 +45,7 @@ export class GeometricError extends Error {
     this.suggestedFix = options.suggestedFix || 'No suggestion available';
     this.recoverable = options.recoverable !== false; // Default to recoverable
     this.timestamp = new Date();
+    this.metadata = {};
 
     // Maintain proper stack trace
     if (Error.captureStackTrace) {
@@ -49,6 +58,7 @@ export class GeometricError extends Error {
    */
   toJSON() {
     return {
+      id: this.id,
       name: this.name,
       type: this.type,
       severity: this.severity,
@@ -57,6 +67,9 @@ export class GeometricError extends Error {
       suggestedFix: this.suggestedFix,
       recoverable: this.recoverable,
       timestamp: this.timestamp.toISOString(),
+      metadata: this.metadata,
+      resolved: this.resolved,
+      resolvedAt: this.resolvedAt?.toISOString(),
       stack: this.stack
     };
   }

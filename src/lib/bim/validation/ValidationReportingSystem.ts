@@ -1,8 +1,16 @@
-import { WallSolid } from '../geometry/WallSolid';
+import type { WallSolid } from '../geometry/WallSolid';
 import { GeometricError, GeometricErrorType, ErrorSeverity } from './GeometricError';
-import { QualityMetrics } from '../types/QualityTypes';
-import { ValidationPipelineConfig, PipelineExecutionResult } from './ValidationPipeline';
-import { RecoverySession, RecoveryRecommendation } from './AutomaticRecoverySystem';
+import type { QualityMetrics } from '../types/QualityTypes';
+import type { PipelineExecutionResult } from './ValidationPipeline';
+import type { RecoverySession, RecoveryRecommendation } from './AutomaticRecoverySystem';
+
+export interface ReportAttachment {
+  id: string;
+  name: string;
+  type: 'image' | 'data' | 'log' | 'config';
+  content: string | ArrayBuffer;
+  metadata?: Record<string, any>;
+}
 
 export interface ValidationReport {
   reportId: string;
@@ -381,7 +389,14 @@ export class ValidationReportingSystem {
     }
 
     return findings.sort((a, b) => {
-      const severityOrder = { [ErrorSeverity.CRITICAL]: 0, [ErrorSeverity.ERROR]: 1, [ErrorSeverity.WARNING]: 2 };
+      const severityOrder: Record<ErrorSeverity, number> = { 
+        [ErrorSeverity.CRITICAL]: 0, 
+        [ErrorSeverity.ERROR]: 1, 
+        [ErrorSeverity.WARNING]: 2,
+        [ErrorSeverity.HIGH]: 0,
+        [ErrorSeverity.MEDIUM]: 1,
+        [ErrorSeverity.LOW]: 2
+      };
       return severityOrder[a.severity] - severityOrder[b.severity];
     });
   }
@@ -613,7 +628,12 @@ export class ValidationReportingSystem {
       [GeometricErrorType.TOLERANCE_EXCEEDED]: 'Tolerance Threshold Exceeded',
       [GeometricErrorType.COMPLEXITY_EXCEEDED]: 'Complexity Limit Exceeded',
       [GeometricErrorType.INVALID_PARAMETER]: 'Invalid Parameter Value',
-      [GeometricErrorType.VALIDATION_FAILURE]: 'Validation Process Failed'
+      [GeometricErrorType.VALIDATION_FAILURE]: 'Validation Process Failed',
+      [GeometricErrorType.TOPOLOGICAL_CONSISTENCY]: 'Topological Consistency Issue',
+      [GeometricErrorType.DIMENSIONAL_ACCURACY]: 'Dimensional Accuracy Issue',
+      [GeometricErrorType.STRUCTURAL_INTEGRITY]: 'Structural Integrity Issue',
+      [GeometricErrorType.MANUFACTURING_FEASIBILITY]: 'Manufacturing Feasibility Issue',
+      [GeometricErrorType.PERFORMANCE_OPTIMIZATION]: 'Performance Optimization Issue'
     };
     return titles[error.type] || 'Unknown Geometric Issue';
   }
@@ -678,7 +698,12 @@ export class ValidationReportingSystem {
       [GeometricErrorType.TOLERANCE_EXCEEDED]: 5,
       [GeometricErrorType.COMPLEXITY_EXCEEDED]: 45,
       [GeometricErrorType.INVALID_PARAMETER]: 3,
-      [GeometricErrorType.VALIDATION_FAILURE]: 10
+      [GeometricErrorType.VALIDATION_FAILURE]: 10,
+      [GeometricErrorType.TOPOLOGICAL_CONSISTENCY]: 20,
+      [GeometricErrorType.DIMENSIONAL_ACCURACY]: 15,
+      [GeometricErrorType.STRUCTURAL_INTEGRITY]: 25,
+      [GeometricErrorType.MANUFACTURING_FEASIBILITY]: 30,
+      [GeometricErrorType.PERFORMANCE_OPTIMIZATION]: 20
     };
 
     let time = baseTime[error.type] || 10;
@@ -716,7 +741,7 @@ export class ValidationReportingSystem {
   }
 
   // Additional helper methods would be implemented here...
-  private calculateOverallQuality(validationResults: PipelineExecutionResult[]): QualityMetrics {
+  private calculateOverallQuality(_validationResults: PipelineExecutionResult[]): QualityMetrics {
     // Implementation would aggregate quality metrics from all results
     return {
       geometricAccuracy: 0.85,
@@ -873,7 +898,12 @@ export class ValidationReportingSystem {
       [GeometricErrorType.TOLERANCE_EXCEEDED]: 'Adjust tolerance values for operations',
       [GeometricErrorType.COMPLEXITY_EXCEEDED]: 'Reduce geometric complexity',
       [GeometricErrorType.INVALID_PARAMETER]: 'Correct invalid parameter values',
-      [GeometricErrorType.VALIDATION_FAILURE]: 'Address validation process failures'
+      [GeometricErrorType.VALIDATION_FAILURE]: 'Address validation process failures',
+      [GeometricErrorType.TOPOLOGICAL_CONSISTENCY]: 'Ensure topological consistency in geometric operations',
+      [GeometricErrorType.DIMENSIONAL_ACCURACY]: 'Maintain dimensional accuracy in measurements',
+      [GeometricErrorType.STRUCTURAL_INTEGRITY]: 'Preserve structural integrity of geometric elements',
+      [GeometricErrorType.MANUFACTURING_FEASIBILITY]: 'Ensure manufacturing feasibility of designs',
+      [GeometricErrorType.PERFORMANCE_OPTIMIZATION]: 'Optimize performance of geometric operations'
     };
     return descriptions[errorType] || 'Address geometric issues';
   }

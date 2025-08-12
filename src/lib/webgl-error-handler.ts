@@ -60,7 +60,7 @@ export class WebGLContextManager {
     if (!this.canvas) return
 
     try {
-      this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl')
+      this.gl = (this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl')) as WebGLRenderingContext
       if (!this.gl) {
         throw new Error('WebGL not supported')
       }
@@ -125,7 +125,7 @@ export function getWebGLInfo(): {
 
   try {
     const canvas = document.createElement('canvas')
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
+    const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext
     
     if (!gl) {
       return { supported: false }

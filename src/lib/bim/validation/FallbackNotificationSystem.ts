@@ -3,7 +3,7 @@
  * Requirements: 8.1, 8.2, 8.3, 8.4, 8.5
  */
 
-import { FallbackNotification } from './FallbackMechanisms';
+import type { FallbackNotification } from './FallbackMechanisms';
 
 /**
  * Notification severity levels
@@ -118,7 +118,7 @@ export class FallbackNotificationSystem {
     qualityImpact: number,
     details: string[]
   ): string {
-    const severity = this.determineQualityImpactSeverity(qualityImpact);
+    // const severity = this.determineQualityImpactSeverity(qualityImpact); // Unused for now
     
     const notification: FallbackNotification = {
       operation,

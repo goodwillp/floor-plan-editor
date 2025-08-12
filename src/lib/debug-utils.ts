@@ -59,12 +59,13 @@ export function logWebGLInfo() {
     }
     
     console.log('🟢 WebGL supported')
+    const webglContext = gl as WebGLRenderingContext;
     console.log('WebGL Info:', {
-      version: gl.getParameter(gl.VERSION),
-      vendor: gl.getParameter(gl.VENDOR),
-      renderer: gl.getParameter(gl.RENDERER),
-      maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE),
-      maxViewportDims: gl.getParameter(gl.MAX_VIEWPORT_DIMS)
+      version: webglContext.getParameter(webglContext.VERSION),
+      vendor: webglContext.getParameter(webglContext.VENDOR),
+      renderer: webglContext.getParameter(webglContext.RENDERER),
+      maxTextureSize: webglContext.getParameter(webglContext.MAX_TEXTURE_SIZE),
+      maxViewportDims: webglContext.getParameter(webglContext.MAX_VIEWPORT_DIMS)
     })
   } catch (error) {
     console.error('Error checking WebGL:', error)

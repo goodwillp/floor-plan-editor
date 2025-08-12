@@ -4,6 +4,7 @@ import { WallPropertiesPanel } from './WallPropertiesPanel'
 import { ProximityMergingPanel } from './ProximityMergingPanel'
 import { ReferenceImagePanel } from './ReferenceImagePanel'
 import { ErrorPanel } from './ErrorPanel'
+import { BIMIntegration } from './bim/BIMIntegration'
 import { 
   ChevronLeft, 
   ChevronDown,
@@ -17,12 +18,13 @@ import {
   Merge,
   Shield,
   Crosshair,
-  Shapes
+  Shapes,
+  Zap
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { WallTypeString } from '@/lib/types'
 
-type SidebarPanel = 'layers' | 'properties' | 'reference' | 'proximity' | 'error' | null
+type SidebarPanel = 'layers' | 'properties' | 'reference' | 'proximity' | 'error' | 'bim' | null
 
 interface SidebarProps {
   className?: string
@@ -230,6 +232,16 @@ export function Sidebar({
       {/* Icon Bar */}
       <div className="flex flex-col w-12 border-r bg-muted/30">
         <div className="flex flex-col gap-1 p-2">
+          <Button
+            variant={activePanel === 'bim' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => togglePanel('bim')}
+            className="aspect-square"
+            title="BIM System"
+          >
+            <Zap className="h-4 w-4" />
+          </Button>
+
           <Button
             variant={activePanel === 'layers' ? 'default' : 'ghost'}
             size="sm"
@@ -718,6 +730,15 @@ export function Sidebar({
               isRecovering={isRecovering}
               errorStats={errorStats}
               onClearErrors={onClearErrors || (() => {})}
+            />
+          )}
+
+          {activePanel === 'bim' && (
+            <BIMIntegration
+              onStatusMessage={(message) => {
+                // Pass status messages to parent if available
+                console.log('BIM Status:', message);
+              }}
             />
           )}
         </div>

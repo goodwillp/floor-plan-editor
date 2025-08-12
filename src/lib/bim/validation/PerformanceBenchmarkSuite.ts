@@ -1,4 +1,4 @@
-import { WallSolid } from '../geometry/WallSolid';
+import type { WallSolid } from '../geometry/WallSolid';
 import { ValidationPipeline } from './ValidationPipeline';
 import { AutomaticRecoverySystem } from './AutomaticRecoverySystem';
 import { GeometricError, GeometricErrorType, ErrorSeverity } from './GeometricError';

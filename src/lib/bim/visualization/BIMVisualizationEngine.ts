@@ -11,12 +11,6 @@ import type {
   BIMVisualizationModes,
   VisualizationConfig,
   VisualizationRenderData,
-  OffsetCurveVisualization,
-  IntersectionVisualization,
-  QualityHeatmapData,
-  ToleranceZoneData,
-  BooleanPreviewData,
-  HealingOverlayData,
   PixiGraphicsData,
   PixiLabelData,
   ColorScheme,
@@ -109,9 +103,9 @@ export class BIMVisualizationEngine {
     const graphics: PixiGraphicsData[] = [];
     const labels: PixiLabelData[] = [];
 
-    walls.forEach((wall, index) => {
+    walls.forEach((wall) => {
       // Render wall solid geometry
-      wall.solidGeometry.forEach((polygon, polyIndex) => {
+      wall.solidGeometry.forEach((polygon, _polyIndex) => {
         graphics.push({
           type: 'polygon',
           points: polygon.outerRing.map(point => ({ x: point.x, y: point.y })),
@@ -124,11 +118,11 @@ export class BIMVisualizationEngine {
           },
           zIndex: 1,
           interactive: true,
-          id: `wall-${wall.id}-poly-${polyIndex}`
+          id: `wall-${wall.id}-poly-${_polyIndex}`
         });
 
         // Render holes if any
-        polygon.holes?.forEach((hole, holeIndex) => {
+        polygon.holes?.forEach((hole, _holeIndex) => {
           graphics.push({
             type: 'polygon',
             points: hole.map(point => ({ x: point.x, y: point.y })),
@@ -141,7 +135,7 @@ export class BIMVisualizationEngine {
             },
             zIndex: 2,
             interactive: false,
-            id: `wall-${wall.id}-hole-${holeIndex}`
+            id: `wall-${wall.id}-hole-${_holeIndex}`
           });
         });
       });
@@ -308,7 +302,7 @@ export class BIMVisualizationEngine {
     });
 
     // Render intersection data
-    intersections.forEach((intersection, index) => {
+    intersections.forEach((intersection) => {
       // Highlight intersection point
       graphics.push({
         type: 'circle',

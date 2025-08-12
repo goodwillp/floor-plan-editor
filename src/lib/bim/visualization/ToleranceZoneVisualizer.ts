@@ -7,7 +7,7 @@
 import type { WallSolid } from '../geometry/WallSolid';
 import type { IntersectionData } from '../geometry/IntersectionData';
 import type { ToleranceZoneData, PixiGraphicsData } from '../types/VisualizationTypes';
-import type { ToleranceContext } from '../types/BIMTypes';
+// import type { ToleranceContext } from '../types/BIMTypes'; // Unused for now
 import { AdaptiveToleranceManager } from '../engines/AdaptiveToleranceManager';
 
 /**
@@ -291,7 +291,7 @@ export class ToleranceZoneVisualizer {
   /**
    * Adjust color alpha (simplified implementation)
    */
-  private adjustColorAlpha(color: string, alpha: number): string {
+  private adjustColorAlpha(color: string, _alpha: number): string {
     // This is a simplified implementation
     // In a real scenario, you'd properly parse and adjust the alpha channel
     return color;

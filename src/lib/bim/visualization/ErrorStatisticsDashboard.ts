@@ -2,7 +2,8 @@
  * Error statistics dashboard with trend analysis
  */
 
-import { ErrorStatistics, ErrorTrend, ErrorSeverityLevel } from './ErrorVisualizationSystem';
+import type { ErrorStatistics, ErrorTrend } from './ErrorVisualizationSystem';
+import { ErrorSeverityLevel } from './ErrorVisualizationSystem';
 
 export interface DashboardConfig {
   refreshInterval: number;
@@ -365,7 +366,7 @@ export class ErrorStatisticsDashboard {
   /**
    * Calculate trend direction
    */
-  private calculateTrendDirection(statistics: ErrorStatistics): 'improving' | 'stable' | 'degrading' {
+  private calculateTrendDirection(_statistics: ErrorStatistics): 'improving' | 'stable' | 'degrading' {
     if (this.historicalData.length < 2) return 'stable';
 
     const recent = this.historicalData.slice(-3);

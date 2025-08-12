@@ -156,7 +156,7 @@ export class QualityColorCoding {
    * Get opacity based on quality metrics
    */
   private getQualityOpacity(metrics: QualityMetrics): number {
-    const issueCount = (metrics.issues?.length || 0);
+    // const issueCount = (metrics.issues?.length || 0); // Unused for now
     const maxIssues = 20;
     
     // Base opacity on issue count and severity

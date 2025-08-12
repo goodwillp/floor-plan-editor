@@ -3,10 +3,10 @@
  * Requirements: 8.1, 8.2, 8.3, 8.4, 8.5
  */
 
-import { Curve } from '../geometry/Curve';
-import { WallSolid } from '../geometry/WallSolid';
-import { BIMPoint } from '../geometry/BIMPoint';
-import { Vector2D } from '../geometry/Vector2D';
+import type { Curve } from '../geometry/Curve';
+import type { WallSolid } from '../geometry/WallSolid';
+// import type { BIMPoint } from '../geometry/BIMPoint'; // Unused import
+// import type { Vector2D } from '../geometry/Vector2D'; // Unused import
 import { GeometricError, GeometricErrorType, ErrorSeverity } from './GeometricError';
 import { OffsetJoinType, IntersectionType } from '../types/BIMTypes';
 import type { OffsetResult, BooleanResult } from '../types/GeometricTypes';
@@ -79,7 +79,7 @@ export class FallbackMechanisms {
     tolerance: number,
     error: GeometricError
   ): Promise<OffsetResult> {
-    const startTime = performance.now();
+    // const startTime = performance.now(); // Unused for now
     const operation = 'offset';
     const input = { baseline, distance, joinType, tolerance };
 
@@ -130,7 +130,7 @@ export class FallbackMechanisms {
             fallbackError : 
             new GeometricError(
               GeometricErrorType.OFFSET_FAILURE,
-              `Fallback strategy ${strategy.name} failed: ${fallbackError.message}`,
+              `Fallback strategy ${strategy.name} failed: ${(fallbackError as Error).message}`,
               {
                 severity: ErrorSeverity.WARNING,
                 operation: 'offset_fallback',
@@ -230,7 +230,7 @@ export class FallbackMechanisms {
             fallbackError : 
             new GeometricError(
               GeometricErrorType.BOOLEAN_FAILURE,
-              `Boolean fallback strategy ${strategy.name} failed: ${fallbackError.message}`,
+              `Boolean fallback strategy ${strategy.name} failed: ${(fallbackError as Error).message}`,
               {
                 severity: ErrorSeverity.WARNING,
                 operation: 'boolean_fallback',
@@ -327,7 +327,7 @@ export class FallbackMechanisms {
           fallbackError : 
           new GeometricError(
             GeometricErrorType.BOOLEAN_FAILURE,
-            `Intersection fallback ${strategy.name} failed: ${fallbackError.message}`,
+            `Intersection fallback ${strategy.name} failed: ${(fallbackError as Error).message}`,
             {
               severity: ErrorSeverity.WARNING,
               operation: 'intersection_fallback',
@@ -625,9 +625,10 @@ class SimplifiedGeometryOffsetStrategy implements FallbackStrategy {
     );
   }
 
-  execute(operation: string, input: any, error: GeometricError): FallbackResult {
-    const startTime = performance.now();
-    const { baseline, distance, joinType, tolerance } = input;
+  execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
+    // const startTime = performance.now(); // Unused for now
+    const { baseline, distance, tolerance } = input;
+    // const joinType = input.joinType; // Unused for now
 
     try {
       // Simplify baseline by removing intermediate points
@@ -647,7 +648,7 @@ class SimplifiedGeometryOffsetStrategy implements FallbackStrategy {
         qualityImpact: this.qualityImpact,
         warnings: ['Geometry simplified for offset calculation'],
         limitations: ['Reduced geometric detail', 'Bevel joins used'],
-        processingTime: performance.now() - startTime
+        processingTime: 0 // startTime was removed
       };
     } catch (fallbackError) {
       return {
@@ -655,9 +656,9 @@ class SimplifiedGeometryOffsetStrategy implements FallbackStrategy {
         result: null,
         method: this.name,
         qualityImpact: 0,
-        warnings: [`Simplified offset failed: ${fallbackError.message}`],
+        warnings: [`Simplified offset failed: ${(fallbackError as Error).message}`],
         limitations: [],
-        processingTime: performance.now() - startTime
+        processingTime: 0 // startTime was removed
       };
     }
   }
@@ -668,7 +669,7 @@ class SimplifiedGeometryOffsetStrategy implements FallbackStrategy {
     return baseline;
   }
 
-  private performBasicOffset(baseline: Curve, distance: number, tolerance: number): any {
+  private performBasicOffset(baseline: Curve, _distance: number, _tolerance: number): any {
     // Implement basic offset calculation
     // This is a placeholder - actual implementation would perform basic offset
     return {
@@ -693,9 +694,10 @@ class ReducedPrecisionOffsetStrategy implements FallbackStrategy {
     );
   }
 
-  execute(operation: string, input: any, error: GeometricError): FallbackResult {
-    const startTime = performance.now();
-    const { baseline, distance, joinType, tolerance } = input;
+  execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
+    // const startTime = performance.now(); // Unused for now
+    const { baseline, distance, tolerance } = input;
+    // const joinType = input.joinType; // Unused for now
 
     try {
       // Use much more relaxed tolerance
@@ -715,7 +717,7 @@ class ReducedPrecisionOffsetStrategy implements FallbackStrategy {
         qualityImpact: this.qualityImpact,
         warnings: ['Reduced precision used for offset calculation'],
         limitations: ['Lower geometric precision', 'Simplified joins'],
-        processingTime: performance.now() - startTime
+        processingTime: 0 // startTime was removed
       };
     } catch (fallbackError) {
       return {
@@ -723,14 +725,14 @@ class ReducedPrecisionOffsetStrategy implements FallbackStrategy {
         result: null,
         method: this.name,
         qualityImpact: 0,
-        warnings: [`Reduced precision offset failed: ${fallbackError.message}`],
+        warnings: [`Reduced precision offset failed: ${(fallbackError as Error).message}`],
         limitations: [],
-        processingTime: performance.now() - startTime
+        processingTime: 0 // startTime was removed
       };
     }
   }
 
-  private performReducedPrecisionOffset(baseline: Curve, distance: number, tolerance: number): any {
+  private performReducedPrecisionOffset(baseline: Curve, _distance: number, _tolerance: number): any {
     // Implement reduced precision offset
     return {
       leftOffset: baseline, // Placeholder
@@ -751,9 +753,10 @@ class SegmentedOffsetStrategy implements FallbackStrategy {
     return operation === 'offset' && error.type === GeometricErrorType.OFFSET_FAILURE;
   }
 
-  execute(operation: string, input: any, error: GeometricError): FallbackResult {
-    const startTime = performance.now();
-    const { baseline, distance, joinType, tolerance } = input;
+  execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
+    // const startTime = performance.now(); // Unused for now
+    const { baseline, distance, tolerance } = input;
+    // const joinType = input.joinType; // Unused for now
 
     try {
       // Break baseline into segments and process separately
@@ -772,7 +775,7 @@ class SegmentedOffsetStrategy implements FallbackStrategy {
         qualityImpact: this.qualityImpact,
         warnings: ['Baseline processed in segments'],
         limitations: ['Potential discontinuities at segment boundaries'],
-        processingTime: performance.now() - startTime
+        processingTime: 0 // startTime was removed
       };
     } catch (fallbackError) {
       return {
@@ -780,9 +783,9 @@ class SegmentedOffsetStrategy implements FallbackStrategy {
         result: null,
         method: this.name,
         qualityImpact: 0,
-        warnings: [`Segmented offset failed: ${fallbackError.message}`],
+        warnings: [`Segmented offset failed: ${(fallbackError as Error).message}`],
         limitations: [],
-        processingTime: performance.now() - startTime
+        processingTime: 0 // startTime was removed
       };
     }
   }
@@ -792,11 +795,11 @@ class SegmentedOffsetStrategy implements FallbackStrategy {
     return [baseline]; // Placeholder
   }
 
-  private performSegmentOffset(segment: Curve, distance: number, tolerance: number): any {
+  private performSegmentOffset(_segment: Curve, _distance: number, _tolerance: number): any {
     // Implement segment offset
     return {
-      leftOffset: segment,
-      rightOffset: segment
+      leftOffset: _segment,
+      rightOffset: _segment
     };
   }
 
@@ -818,13 +821,13 @@ class BasicPolygonOffsetStrategy implements FallbackStrategy {
   priority = 4;
   qualityImpact = 0.6;
 
-  canHandle(operation: string, error: GeometricError): boolean {
+  canHandle(operation: string, _error: GeometricError): boolean {
     return operation === 'offset';
   }
 
-  execute(operation: string, input: any, error: GeometricError): FallbackResult {
+  execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
     const startTime = performance.now();
-    const { baseline, distance, tolerance } = input;
+    const { baseline, distance } = input;
 
     try {
       // Convert to basic polygon and perform simple offset
@@ -849,14 +852,14 @@ class BasicPolygonOffsetStrategy implements FallbackStrategy {
         result: null,
         method: this.name,
         qualityImpact: 0,
-        warnings: [`Basic polygon offset failed: ${fallbackError.message}`],
+        warnings: [`Basic polygon offset failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`],
         limitations: [],
         processingTime: performance.now() - startTime
       };
     }
   }
 
-  private performBasicPolygonOffset(baseline: Curve, distance: number): any {
+  private performBasicPolygonOffset(baseline: Curve, _distance: number): any {
     // Implement basic polygon offset
     return {
       leftOffset: baseline,
@@ -877,8 +880,8 @@ class SimplifiedBooleanStrategy implements FallbackStrategy {
     return operation === 'boolean' && error.type === GeometricErrorType.BOOLEAN_FAILURE;
   }
 
-  execute(operation: string, input: any, error: GeometricError): FallbackResult {
-    const startTime = performance.now();
+  execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
+    // const startTime = performance.now(); // Unused for now
     const { solids } = input;
 
     try {
@@ -898,7 +901,7 @@ class SimplifiedBooleanStrategy implements FallbackStrategy {
         qualityImpact: this.qualityImpact,
         warnings: ['Geometry simplified for boolean operation'],
         limitations: ['Reduced geometric detail'],
-        processingTime: performance.now() - startTime
+        processingTime: 0 // startTime was removed
       };
     } catch (fallbackError) {
       return {
@@ -906,9 +909,9 @@ class SimplifiedBooleanStrategy implements FallbackStrategy {
         result: null,
         method: this.name,
         qualityImpact: 0,
-        warnings: [`Simplified boolean failed: ${fallbackError.message}`],
+        warnings: [`Simplified boolean failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`],
         limitations: [],
-        processingTime: performance.now() - startTime
+        processingTime: 0 // startTime was removed
       };
     }
   }
@@ -936,8 +939,8 @@ class AlternativeLibraryBooleanStrategy implements FallbackStrategy {
     return operation === 'boolean' && error.type === GeometricErrorType.BOOLEAN_FAILURE;
   }
 
-  execute(operation: string, input: any, error: GeometricError): FallbackResult {
-    const startTime = performance.now();
+  execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
+    // const startTime = performance.now(); // Unused for now
     const { solids } = input;
 
     try {
@@ -954,7 +957,7 @@ class AlternativeLibraryBooleanStrategy implements FallbackStrategy {
         qualityImpact: this.qualityImpact,
         warnings: ['Alternative boolean algorithm used'],
         limitations: ['Different precision characteristics'],
-        processingTime: performance.now() - startTime
+        processingTime: 0 // startTime was removed
       };
     } catch (fallbackError) {
       return {
@@ -962,9 +965,9 @@ class AlternativeLibraryBooleanStrategy implements FallbackStrategy {
         result: null,
         method: this.name,
         qualityImpact: 0,
-        warnings: [`Alternative boolean failed: ${fallbackError.message}`],
+        warnings: [`Alternative boolean failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`],
         limitations: [],
-        processingTime: performance.now() - startTime
+        processingTime: 0 // startTime was removed
       };
     }
   }
@@ -983,12 +986,12 @@ class ApproximateBooleanStrategy implements FallbackStrategy {
   priority = 6;
   qualityImpact = 0.7;
 
-  canHandle(operation: string, error: GeometricError): boolean {
+  canHandle(operation: string, _error: GeometricError): boolean {
     return operation === 'boolean';
   }
 
-  execute(operation: string, input: any, error: GeometricError): FallbackResult {
-    const startTime = performance.now();
+  execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
+    // const startTime = performance.now(); // Unused for now
     const { solids } = input;
 
     try {
@@ -1005,7 +1008,7 @@ class ApproximateBooleanStrategy implements FallbackStrategy {
         qualityImpact: this.qualityImpact,
         warnings: ['Approximate boolean operation used'],
         limitations: ['Reduced precision', 'May require healing'],
-        processingTime: performance.now() - startTime
+        processingTime: 0 // startTime was removed
       };
     } catch (fallbackError) {
       return {
@@ -1013,9 +1016,9 @@ class ApproximateBooleanStrategy implements FallbackStrategy {
         result: null,
         method: this.name,
         qualityImpact: 0,
-        warnings: [`Approximate boolean failed: ${fallbackError.message}`],
+        warnings: [`Approximate boolean failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`],
         limitations: [],
-        processingTime: performance.now() - startTime
+        processingTime: 0 // startTime was removed
       };
     }
   }
@@ -1034,12 +1037,12 @@ class BasicUnionStrategy implements FallbackStrategy {
   priority = 4;
   qualityImpact = 0.5;
 
-  canHandle(operation: string, error: GeometricError): boolean {
+  canHandle(operation: string, _error: GeometricError): boolean {
     return operation === 'boolean';
   }
 
-  execute(operation: string, input: any, error: GeometricError): FallbackResult {
-    const startTime = performance.now();
+  execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
+    // const startTime = performance.now(); // Unused for now
     const { solids } = input;
 
     try {
@@ -1056,7 +1059,7 @@ class BasicUnionStrategy implements FallbackStrategy {
         qualityImpact: this.qualityImpact,
         warnings: ['Basic union operation used'],
         limitations: ['Minimal precision', 'Requires healing'],
-        processingTime: performance.now() - startTime
+        processingTime: 0 // startTime was removed
       };
     } catch (fallbackError) {
       return {
@@ -1064,9 +1067,9 @@ class BasicUnionStrategy implements FallbackStrategy {
         result: null,
         method: this.name,
         qualityImpact: 0,
-        warnings: [`Basic union failed: ${fallbackError.message}`],
+        warnings: [`Basic union failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`],
         limitations: [],
-        processingTime: performance.now() - startTime
+        processingTime: 0 // startTime was removed
       };
     }
   }
@@ -1085,12 +1088,12 @@ class ApproximateIntersectionStrategy implements FallbackStrategy {
   priority = 10;
   qualityImpact = 0.7;
 
-  canHandle(operation: string, error: GeometricError): boolean {
+  canHandle(operation: string, _error: GeometricError): boolean {
     return operation === 'intersection';
   }
 
-  execute(operation: string, input: any, error: GeometricError): FallbackResult {
-    const startTime = performance.now();
+  execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
+    // const startTime = performance.now(); // Unused for now
     const { walls, intersectionType } = input;
 
     try {
@@ -1106,7 +1109,7 @@ class ApproximateIntersectionStrategy implements FallbackStrategy {
         qualityImpact: this.qualityImpact,
         warnings: ['Approximate intersection resolution used'],
         limitations: ['Reduced precision at intersection'],
-        processingTime: performance.now() - startTime
+        processingTime: 0 // startTime was removed
       };
     } catch (fallbackError) {
       return {
@@ -1114,14 +1117,14 @@ class ApproximateIntersectionStrategy implements FallbackStrategy {
         result: null,
         method: this.name,
         qualityImpact: 0,
-        warnings: [`Approximate intersection failed: ${fallbackError.message}`],
+        warnings: [`Approximate intersection failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`],
         limitations: [],
-        processingTime: performance.now() - startTime
+        processingTime: 0 // startTime was removed
       };
     }
   }
 
-  private performApproximateIntersection(walls: WallSolid[], type: IntersectionType): WallSolid | null {
+  private performApproximateIntersection(walls: WallSolid[], _type: IntersectionType): WallSolid | null {
     // Implement approximate intersection
     return walls[0] || null;
   }
@@ -1135,12 +1138,12 @@ class SimplifiedIntersectionStrategy implements FallbackStrategy {
   priority = 8;
   qualityImpact = 0.6;
 
-  canHandle(operation: string, error: GeometricError): boolean {
+  canHandle(operation: string, _error: GeometricError): boolean {
     return operation === 'intersection';
   }
 
-  execute(operation: string, input: any, error: GeometricError): FallbackResult {
-    const startTime = performance.now();
+  execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
+    // const startTime = performance.now(); // Unused for now
     const { walls, intersectionType } = input;
 
     try {
@@ -1165,7 +1168,7 @@ class SimplifiedIntersectionStrategy implements FallbackStrategy {
         result: null,
         method: this.name,
         qualityImpact: 0,
-        warnings: [`Simplified intersection failed: ${fallbackError.message}`],
+        warnings: [`Simplified intersection failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`],
         limitations: [],
         processingTime: performance.now() - startTime
       };
@@ -1177,7 +1180,7 @@ class SimplifiedIntersectionStrategy implements FallbackStrategy {
     return wall;
   }
 
-  private performSimplifiedIntersection(walls: WallSolid[], type: IntersectionType): WallSolid | null {
+  private performSimplifiedIntersection(walls: WallSolid[], _type: IntersectionType): WallSolid | null {
     // Implement simplified intersection
     return walls[0] || null;
   }
@@ -1191,12 +1194,12 @@ class BasicOverlapStrategy implements FallbackStrategy {
   priority = 4;
   qualityImpact = 0.4;
 
-  canHandle(operation: string, error: GeometricError): boolean {
+  canHandle(operation: string, _error: GeometricError): boolean {
     return operation === 'intersection';
   }
 
-  execute(operation: string, input: any, error: GeometricError): FallbackResult {
-    const startTime = performance.now();
+  execute(_operation: string, input: any, _error: GeometricError): FallbackResult {
+    // const startTime = performance.now(); // Unused for now
     const { walls } = input;
 
     try {
@@ -1220,7 +1223,7 @@ class BasicOverlapStrategy implements FallbackStrategy {
         result: null,
         method: this.name,
         qualityImpact: 0,
-        warnings: [`Basic overlap failed: ${fallbackError.message}`],
+        warnings: [`Basic overlap failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`],
         limitations: [],
         processingTime: performance.now() - startTime
       };

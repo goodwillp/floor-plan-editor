@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import { useCallback } from 'react'
 import { OptimizedIconButton } from '@/components/ui/optimized-icon-button'
 import { Save } from 'lucide-react'
 

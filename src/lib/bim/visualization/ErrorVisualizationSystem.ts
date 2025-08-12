@@ -3,9 +3,9 @@
  */
 
 import { GeometricError } from '../validation/GeometricError';
-import { WallSolid } from '../geometry/WallSolid';
-import { BIMPoint } from '../geometry/BIMPoint';
-import { BIMPolygon } from '../geometry/BIMPolygon';
+import type { WallSolid } from '../geometry/WallSolid';
+import type { BIMPoint } from '../geometry/BIMPoint';
+import type { BIMPolygon } from '../geometry/BIMPolygon';
 
 export interface ErrorVisualizationConfig {
   enableErrorHighlighting: boolean;
@@ -317,7 +317,7 @@ export class ErrorVisualizationSystem {
    */
   generateErrorStatistics(timeWindow?: number): ErrorStatistics {
     const cutoffTime = timeWindow ? Date.now() - timeWindow : 0;
-    const relevantErrors = this.errorHistory.filter(e => e.timestamp >= cutoffTime);
+    const relevantErrors = this.errorHistory.filter(e => e.timestamp.getTime() >= cutoffTime);
 
     const errorsByType = new Map<string, number>();
     const errorsBySeverity = new Map<ErrorSeverityLevel, number>();
@@ -421,11 +421,11 @@ export class ErrorVisualizationSystem {
     const cutoffTime = Date.now() - maxAge;
     
     // Clean up error history
-    this.errorHistory = this.errorHistory.filter(e => e.timestamp >= cutoffTime);
+    this.errorHistory = this.errorHistory.filter(e => e.timestamp.getTime() >= cutoffTime);
     
     // Clean up highlights
     for (const [id, highlight] of this.errorHighlights.entries()) {
-      if (highlight.error.timestamp < cutoffTime) {
+      if (highlight.error.timestamp.getTime() < cutoffTime) {
         this.errorHighlights.delete(id);
       }
     }
@@ -473,7 +473,15 @@ export class ErrorVisualizationSystem {
     }
 
     // Default position
-    return { x: 0, y: 0, id: 'error_position', tolerance: 0.001 };
+    return { 
+      x: 0, 
+      y: 0, 
+      id: 'error_position', 
+      tolerance: 0.001,
+      creationMethod: 'error_fallback',
+      accuracy: 1.0,
+      validated: false
+    };
   }
 
   /**
@@ -620,7 +628,7 @@ export class ErrorVisualizationSystem {
       e.id !== error.id && 
       (e.operation === error.operation || 
        e.type === error.type ||
-       Math.abs(e.timestamp - error.timestamp) < 5000) // Within 5 seconds
+       Math.abs(e.timestamp.getTime() - error.timestamp.getTime()) < 5000) // Within 5 seconds
     ).slice(0, 5); // Limit to 5 related errors
   }
 
@@ -745,7 +753,7 @@ export class ErrorVisualizationSystem {
       const windowEnd = now - i * timeWindow;
       
       const windowErrors = errors.filter(e => 
-        e.timestamp >= windowStart && e.timestamp < windowEnd
+        e.timestamp.getTime() >= windowStart && e.timestamp.getTime() < windowEnd
       );
 
       const errorsByType = new Map<string, number>();
@@ -777,7 +785,7 @@ export class ErrorVisualizationSystem {
     
     const resolutionTimes = resolvedErrors
       .filter(e => e.resolvedAt)
-      .map(e => e.resolvedAt! - e.timestamp);
+      .map(e => e.resolvedAt!.getTime() - e.timestamp.getTime());
     
     const averageResolutionTime = resolutionTimes.length > 0 
       ? resolutionTimes.reduce((sum, time) => sum + time, 0) / resolutionTimes.length
@@ -805,7 +813,7 @@ export class ErrorVisualizationSystem {
   /**
    * Execute a single fix step
    */
-  private async executeFixStep(step: FixStep, parameters?: Record<string, any>): Promise<boolean> {
+  private async executeFixStep(_step: FixStep, _parameters?: Record<string, any>): Promise<boolean> {
     // This would integrate with the actual BIM operations
     // For now, return a simulated result
     return new Promise(resolve => {
@@ -816,14 +824,14 @@ export class ErrorVisualizationSystem {
   /**
    * Generate fix preview
    */
-  private async generateFixPreview(fix: SuggestedFix, parameters?: Record<string, any>): Promise<GeometrySnapshot> {
+  private async generateFixPreview(_fix: SuggestedFix, _parameters?: Record<string, any>): Promise<GeometrySnapshot> {
     // This would generate a preview of the fix result
     // For now, return a simulated preview
     return {
       timestamp: Date.now(),
-      geometry: null, // Would contain the preview geometry
+      geometry: [] as any[], // Empty array as placeholder
       quality: 85, // Simulated improved quality
-      metadata: { preview: true, fixId: fix.id }
+      metadata: { preview: true, fixId: _fix.id }
     };
   }
 

@@ -81,11 +81,7 @@ export class PixiJSBIMRenderer {
     graphics.interactive = data.interactive;
 
     // Set line style
-    graphics.lineStyle({
-      width: data.style.lineWidth,
-      color: data.style.color,
-      alpha: data.style.alpha
-    });
+    graphics.lineStyle(data.style.lineWidth, data.style.color, data.style.alpha);
 
     // Set fill style if specified
     if (data.style.fillColor !== undefined) {
@@ -263,9 +259,9 @@ export class PixiJSBIMRenderer {
         fontSize: data.style.fontSize,
         fontFamily: data.style.fontFamily,
         fill: data.style.color,
-        backgroundColor: data.style.backgroundColor,
+        // backgroundColor: data.style.backgroundColor, // Not supported in this PIXI version
         padding: data.style.padding || 0,
-        borderRadius: data.style.borderRadius || 0
+        // borderRadius: data.style.borderRadius || 0 // Not supported in this PIXI version
       });
 
       const text = new PIXI.Text(data.text, style);
@@ -343,7 +339,7 @@ export class PixiJSBIMRenderer {
   /**
    * Apply animation properties to target
    */
-  private applyAnimationProperties(target: PIXI.DisplayObject, data: PixiAnimationData, progress: number): void {
+  private applyAnimationProperties(target: any, data: PixiAnimationData, progress: number): void {
     switch (data.type) {
       case 'fade':
         target.alpha = data.properties.startAlpha + 
@@ -403,7 +399,7 @@ export class PixiJSBIMRenderer {
   /**
    * Find object by ID
    */
-  private findObjectById(id: string): PIXI.DisplayObject | null {
+  private findObjectById(id: string): any | null {
     return this.graphicsObjects.get(id) || this.textObjects.get(id) || null;
   }
 
@@ -448,12 +444,12 @@ export class PixiJSBIMRenderer {
     switch (mode) {
       case 'quality_heatmap':
         // Enable color blending for smooth gradients
-        this.container.blendMode = PIXI.BLEND_MODES.NORMAL;
+        // this.container.blendMode = PIXI.BLEND_MODES.NORMAL; // Not available in this PIXI version
         break;
       
       case 'offset_curves':
         // Enable anti-aliasing for smooth curves
-        this.app.renderer.antialias = true;
+        // this.app.renderer.antialias = true; // Not available in this PIXI version
         break;
       
       case 'intersection_data':
@@ -463,8 +459,8 @@ export class PixiJSBIMRenderer {
       
       default:
         // Reset to default settings
-        this.container.blendMode = PIXI.BLEND_MODES.NORMAL;
-        this.app.renderer.antialias = true;
+        // this.container.blendMode = PIXI.BLEND_MODES.NORMAL; // Not available in this PIXI version
+        // this.app.renderer.antialias = true; // Not available in this PIXI version
         this.app.renderer.resolution = 1;
         break;
     }
